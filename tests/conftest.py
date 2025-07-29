@@ -13,7 +13,7 @@ from typing import Dict, Any
 # 设置测试环境变量
 os.environ["TESTING"] = "true"
 os.environ["OPENAI_API_KEY"] = "test-key"
-os.environ["ANTHROPIC_API_KEY"] = "test-key"
+os.environ["DASHSCOPE_API_KEY"] = "test-key"
 os.environ["MILVUS_HOST"] = "localhost"
 os.environ["MILVUS_PORT"] = "19530"
 
@@ -36,7 +36,7 @@ def real_models_config():
 
 
 @pytest.fixture
-def test_models_config_file(temp_config_dir, real_models_config):
+def models_config_file(temp_config_dir, real_models_config):
     """创建测试用的模型配置文件（基于真实配置）"""
     config_file = temp_config_dir / "models.yaml"
     
@@ -237,6 +237,26 @@ def mock_reranker():
         {"corpus_id": 0, "score": 0.9},
         {"corpus_id": 1, "score": 0.7},
         {"corpus_id": 2, "score": 0.5}
+    ])
+    return mock
+
+
+@pytest.fixture
+def mock_dashscope_reranker():
+    """模拟DashScope重排序模型"""
+    mock = Mock()
+    mock.rerank = Mock(return_value=[
+        {"index": 0, "document": "Document 1", "relevance_score": 0.9},
+        {"index": 1, "document": "Document 2", "relevance_score": 0.7},
+        {"index": 2, "document": "Document 3", "relevance_score": 0.5}
+    ])
+    mock.arerank = AsyncMock(return_value=[
+        {"index": 0, "document": "Document 1", "relevance_score": 0.9},
+        {"index": 1, "document": "Document 2", "relevance_score": 0.7}
+    ])
+    mock.rerank_documents_with_metadata = Mock(return_value=[
+        {"content": "Document 1", "relevance_score": 0.9, "metadata": {"source": "test"}},
+        {"content": "Document 2", "relevance_score": 0.7, "metadata": {"source": "test"}}
     ])
     return mock
 

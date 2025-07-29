@@ -6,16 +6,25 @@ import os
 import yaml
 from pathlib import Path
 from typing import Dict, Any, Optional, Type
-from pydantic import BaseSettings, Field
+from pydantic import Field
+from pydantic_settings import BaseSettings
 from functools import lru_cache
+from dotenv import load_dotenv
+
+# 加载项目环境变量（优先级高于系统环境变量）
+env_file = Path(__file__).parent.parent / ".env"
+if env_file.exists():
+    load_dotenv(env_file, override=True)
 
 # LangChain导入
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_anthropic import ChatAnthropic
 from langchain_community.vectorstores import Milvus
 from langchain_core.language_models import BaseChatModel
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStore
+
+# 导入自定义重排序模型
+from src.reranking.dashscope_rerank import DashScopeRerank
 
 
 class Settings(BaseSettings):
@@ -42,13 +51,8 @@ class Settings(BaseSettings):
     
     # API密钥
     openai_api_key: str = Field(default="", env="OPENAI_API_KEY")
-    anthropic_api_key: str = Field(default="", env="ANTHROPIC_API_KEY")
     dashscope_api_key: str = Field(default="", env="DASHSCOPE_API_KEY")
-    baidu_api_key: str = Field(default="", env="BAIDU_API_KEY")
-    zhipu_api_key: str = Field(default="", env="ZHIPU_API_KEY")
-    moonshot_api_key: str = Field(default="", env="MOONSHOT_API_KEY")
     tavily_api_key: str = Field(default="", env="TAVILY_API_KEY")
-    serp_api_key: str = Field(default="", env="SERP_API_KEY")
     langsmith_api_key: str = Field(default="", env="LANGSMITH_API_KEY")
     
     # 模型配置
@@ -124,6 +128,7 @@ class ModelConfig:
         self._chat_models: Dict[str, BaseChatModel] = {}
         self._embedding_models: Dict[str, Embeddings] = {}
         self._vector_stores: Dict[str, VectorStore] = {}
+        self._reranking_models: Dict[str, Any] = {}
         self.load_config()
     
     def load_config(self) -> None:
@@ -172,32 +177,18 @@ class ModelConfig:
         
         # 根据provider创建对应的LangChain模型
         if provider == "langchain_openai":
-            # 原生OpenAI
-            model = ChatOpenAI(
-                model=model_config["name"],
-                api_key=os.getenv(model_config["api_key_env"]),
+            # OpenAI或兼容接口
+            chat_params = {
+                "model": model_config["name"],
+                "api_key": os.getenv(model_config["api_key_env"]),
                 **model_config["parameters"]
-            )
-        elif provider == "langchain_anthropic":
-            # Anthropic Claude
-            model = ChatAnthropic(
-                model=model_config["name"],
-                api_key=os.getenv(model_config["api_key_env"]),
-                **model_config["parameters"]
-            )
-        elif provider in ["dashscope", "baidu", "zhipu", "moonshot"]:
-            # 使用OpenAI兼容接口的第三方模型
-            base_url = model_config.get("base_url", "")
-            if base_url:
-                model = ChatOpenAI(
-                    model=model_config["name"],
-                    api_key=os.getenv(model_config["api_key_env"]),
-                    base_url=base_url,
-                    default_headers=self._build_headers(model_config),
-                    **model_config["parameters"]
-                )
-            else:
-                raise ValueError(f"模型 '{model_name}' 缺少 base_url 配置")
+            }
+            
+            # 如果配置了base_url，添加到参数中
+            if model_config.get("base_url"):
+                chat_params["base_url"] = model_config["base_url"]
+            
+            model = ChatOpenAI(**chat_params)
         else:
             raise ValueError(f"不支持的聊天模型provider: {provider}")
         
@@ -224,37 +215,6 @@ class ModelConfig:
                 api_key=os.getenv(model_config["api_key_env"]),
                 **model_config["parameters"]
             )
-        elif provider == "dashscope":
-            # 阿里云DashScope嵌入（需要自定义实现）
-            try:
-                from langchain_community.embeddings import DashScopeEmbeddings
-                model = DashScopeEmbeddings(
-                    dashscope_api_key=os.getenv(model_config["api_key_env"]),
-                    **model_config["parameters"]
-                )
-            except ImportError:
-                # 如果没有DashScope包，使用OpenAI兼容接口
-                base_url = model_config.get("base_url", "")
-                if base_url:
-                    model = OpenAIEmbeddings(
-                        api_key=os.getenv(model_config["api_key_env"]),
-                        base_url=base_url,
-                        **model_config["parameters"]
-                    )
-                else:
-                    raise ValueError(f"DashScope嵌入模型需要安装dashscope包或配置base_url")
-        elif provider in ["baidu", "zhipu"]:
-            # 其他厂商的嵌入模型（需要自定义实现或使用兼容接口）
-            base_url = model_config.get("base_url", "")
-            if base_url:
-                # 尝试使用OpenAI兼容接口
-                model = OpenAIEmbeddings(
-                    api_key=os.getenv(model_config["api_key_env"]),
-                    base_url=base_url,
-                    **model_config["parameters"]
-                )
-            else:
-                raise ValueError(f"嵌入模型 '{model_name}' 需要自定义实现或配置base_url")
         else:
             raise ValueError(f"不支持的嵌入模型provider: {provider}")
         
@@ -292,6 +252,35 @@ class ModelConfig:
         self._vector_stores[store_name] = store
         return store
     
+    def get_reranking_model(self, model_name: str = None) -> Any:
+        """获取重排序模型实例"""
+        if model_name is None:
+            model_name = self._config["default_models"]["reranking"]
+        
+        # 如果已经创建过，直接返回
+        if model_name in self._reranking_models:
+            return self._reranking_models[model_name]
+        
+        if model_name not in self._config["reranking_models"]:
+            raise ValueError(f"重排序模型 '{model_name}' 未找到")
+        
+        model_config = self._config["reranking_models"][model_name]
+        provider = model_config["provider"]
+        
+        if provider == "dashscope":
+            # DashScope重排序模型
+            model = DashScopeRerank(
+                model=model_config["parameters"]["model"],
+                api_key=os.getenv(model_config["api_key_env"]),
+                top_n=model_config["parameters"]["top_n"],
+                return_documents=model_config["parameters"]["return_documents"]
+            )
+        else:
+            raise ValueError(f"不支持的重排序模型provider: {provider}")
+        
+        self._reranking_models[model_name] = model
+        return model
+    
     def get_model_with_fallback(self, model_type: str, model_name: str = None) -> Any:
         """获取带fallback的模型"""
         fallback_config = self._config.get("model_switching", {})
@@ -301,6 +290,8 @@ class ModelConfig:
                 return self.get_chat_model(model_name)
             elif model_type == "embedding":
                 return self.get_embedding_model(model_name)
+            elif model_type == "reranking":
+                return self.get_reranking_model(model_name)
             else:
                 raise ValueError(f"不支持的模型类型: {model_type}")
         
@@ -316,6 +307,8 @@ class ModelConfig:
                     return self.get_chat_model(model_name_in_chain)
                 elif model_type == "embedding":
                     return self.get_embedding_model(model_name_in_chain)
+                elif model_type == "reranking":
+                    return self.get_reranking_model(model_name_in_chain)
             except Exception as e:
                 print(f"模型 {model_name_in_chain} 创建失败: {e}")
                 continue

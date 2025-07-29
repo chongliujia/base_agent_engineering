@@ -165,14 +165,14 @@ class TestModelConfig:
         with pytest.raises(ValueError, match="文本分割器 'nonexistent' 未找到"):
             config.get_text_splitter_config("nonexistent")
     
-    def test_get_fallback_strategy(self, models_config_file):
-        """测试获取fallback策略"""
+    def test_get_model_switching_config(self, models_config_file):
+        """测试获取模型切换配置"""
         config = ModelConfig(config_path=str(models_config_file))
-        strategy = config.get_fallback_strategy()
+        switching_config = config.get_model_switching_config()
         
-        assert strategy["enabled"] is True
-        assert strategy["max_retries"] == 3
-        assert strategy["retry_delay"] == 1.0
+        assert switching_config["enabled"] is True
+        assert "fallback_chain" in switching_config
+        assert "switch_conditions" in switching_config
     
     def test_get_performance_config(self, models_config_file):
         """测试获取性能配置"""
@@ -182,6 +182,25 @@ class TestModelConfig:
         assert "max_concurrent_requests" in performance
         assert "cache" in performance
         assert performance["cache"]["enabled"] is True
+    
+    @patch('config.settings.DashScopeRerank')
+    def test_get_reranking_model(self, mock_dashscope_rerank, models_config_file):
+        """测试获取重排序模型"""
+        mock_instance = Mock()
+        mock_dashscope_rerank.return_value = mock_instance
+        
+        config = ModelConfig(config_path=str(models_config_file))
+        model = config.get_reranking_model("primary")
+        
+        assert model == mock_instance
+        mock_dashscope_rerank.assert_called_once()
+    
+    def test_get_reranking_model_not_found(self, models_config_file):
+        """测试获取不存在的重排序模型"""
+        config = ModelConfig(config_path=str(models_config_file))
+        
+        with pytest.raises(ValueError, match="重排序模型 'nonexistent' 未找到"):
+            config.get_reranking_model("nonexistent")
     
     def test_model_caching(self, models_config_file):
         """测试模型实例缓存"""
@@ -200,6 +219,24 @@ class TestModelConfig:
             assert model1 == model2
             # ChatOpenAI只应该被调用一次
             assert mock_chat.call_count == 1
+    
+    def test_reranking_model_caching(self, models_config_file):
+        """测试重排序模型实例缓存"""
+        with patch('config.settings.DashScopeRerank') as mock_rerank:
+            mock_instance = Mock()
+            mock_rerank.return_value = mock_instance
+            
+            config = ModelConfig(config_path=str(models_config_file))
+            
+            # 第一次调用
+            model1 = config.get_reranking_model("primary")
+            # 第二次调用
+            model2 = config.get_reranking_model("primary")
+            
+            # 应该返回同一个实例
+            assert model1 == model2
+            # DashScopeRerank只应该被调用一次
+            assert mock_rerank.call_count == 1
 
 
 class TestConfigSingletons:
