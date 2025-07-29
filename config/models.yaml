@@ -1,0 +1,469 @@
+# 统一模型配置文件
+# 集成LangChain和LangGraph的配置，支持多厂商模型
+
+# LangChain聊天模型配置
+chat_models:
+  # OpenAI模型
+  primary:
+    name: "gpt-4"
+    provider: "langchain_openai"
+    class: "ChatOpenAI"
+    api_key_env: "OPENAI_API_KEY"
+    base_url: ""  # 使用默认OpenAI URL
+    parameters:
+      temperature: 0.7
+      max_tokens: 2000
+      top_p: 1.0
+      frequency_penalty: 0.0
+      presence_penalty: 0.0
+      streaming: true
+    cost_per_1k_tokens: 0.03
+    max_context_length: 8192
+    
+  fallback:
+    name: "gpt-3.5-turbo"
+    provider: "langchain_openai"
+    class: "ChatOpenAI"
+    api_key_env: "OPENAI_API_KEY"
+    base_url: ""
+    parameters:
+      temperature: 0.7
+      max_tokens: 1500
+      top_p: 1.0
+      frequency_penalty: 0.0
+      presence_penalty: 0.0
+      streaming: true
+    cost_per_1k_tokens: 0.002
+    max_context_length: 4096
+    
+  # Anthropic Claude模型
+  claude:
+    name: "claude-3-sonnet-20240229"
+    provider: "langchain_anthropic"
+    class: "ChatAnthropic"
+    api_key_env: "ANTHROPIC_API_KEY"
+    base_url: ""
+    parameters:
+      temperature: 0.7
+      max_tokens: 2000
+      streaming: true
+    cost_per_1k_tokens: 0.015
+    max_context_length: 200000
+
+  # 阿里云通义千问模型
+  qwen_turbo:
+    name: "qwen-turbo"
+    provider: "dashscope"
+    class: "ChatOpenAI"  # 使用OpenAI兼容接口
+    api_key_env: "DASHSCOPE_API_KEY"
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    parameters:
+      temperature: 0.7
+      max_tokens: 2000
+      top_p: 0.8
+      streaming: true
+    cost_per_1k_tokens: 0.002
+    max_context_length: 8192
+    
+  qwen_plus:
+    name: "qwen-plus"
+    provider: "dashscope"
+    class: "ChatOpenAI"
+    api_key_env: "DASHSCOPE_API_KEY"
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    parameters:
+      temperature: 0.7
+      max_tokens: 4000
+      top_p: 0.8
+      streaming: true
+    cost_per_1k_tokens: 0.004
+    max_context_length: 32768
+    
+  qwen_max:
+    name: "qwen-max"
+    provider: "dashscope"
+    class: "ChatOpenAI"
+    api_key_env: "DASHSCOPE_API_KEY"
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    parameters:
+      temperature: 0.7
+      max_tokens: 6000
+      top_p: 0.8
+      streaming: true
+    cost_per_1k_tokens: 0.02
+    max_context_length: 30000
+
+  # 百度文心一言模型
+  ernie_bot_turbo:
+    name: "ERNIE-Bot-turbo"
+    provider: "baidu"
+    class: "ChatOpenAI"
+    api_key_env: "BAIDU_API_KEY"
+    base_url: "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/eb-instant"
+    extra_headers:
+      Content-Type: "application/json"
+    parameters:
+      temperature: 0.7
+      max_tokens: 2000
+      top_p: 0.8
+      streaming: true
+    cost_per_1k_tokens: 0.003
+    max_context_length: 11200
+    
+  ernie_bot_4:
+    name: "ERNIE-Bot-4"
+    provider: "baidu"
+    class: "ChatOpenAI"
+    api_key_env: "BAIDU_API_KEY"
+    base_url: "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions_pro"
+    parameters:
+      temperature: 0.7
+      max_tokens: 4000
+      top_p: 0.8
+      streaming: true
+    cost_per_1k_tokens: 0.12
+    max_context_length: 5120
+
+  # 智谱GLM模型
+  glm_4:
+    name: "glm-4"
+    provider: "zhipu"
+    class: "ChatOpenAI"
+    api_key_env: "ZHIPU_API_KEY"
+    base_url: "https://open.bigmodel.cn/api/paas/v4"
+    parameters:
+      temperature: 0.7
+      max_tokens: 2000
+      top_p: 0.8
+      streaming: true
+    cost_per_1k_tokens: 0.1
+    max_context_length: 128000
+    
+  glm_3_turbo:
+    name: "glm-3-turbo"
+    provider: "zhipu"
+    class: "ChatOpenAI"
+    api_key_env: "ZHIPU_API_KEY"
+    base_url: "https://open.bigmodel.cn/api/paas/v4"
+    parameters:
+      temperature: 0.7
+      max_tokens: 2000
+      top_p: 0.8
+      streaming: true
+    cost_per_1k_tokens: 0.005
+    max_context_length: 128000
+
+  # 月之暗面Kimi模型
+  kimi_8k:
+    name: "moonshot-v1-8k"
+    provider: "moonshot"
+    class: "ChatOpenAI"
+    api_key_env: "MOONSHOT_API_KEY"
+    base_url: "https://api.moonshot.cn/v1"
+    parameters:
+      temperature: 0.7
+      max_tokens: 2000
+      streaming: true
+    cost_per_1k_tokens: 0.012
+    max_context_length: 8192
+    
+  kimi_32k:
+    name: "moonshot-v1-32k"
+    provider: "moonshot"
+    class: "ChatOpenAI"
+    api_key_env: "MOONSHOT_API_KEY"
+    base_url: "https://api.moonshot.cn/v1"
+    parameters:
+      temperature: 0.7
+      max_tokens: 4000
+      streaming: true
+    cost_per_1k_tokens: 0.024
+    max_context_length: 32768
+
+# LangChain嵌入模型配置
+embedding_models:
+  # OpenAI嵌入模型
+  primary:
+    name: "text-embedding-3-large"
+    provider: "langchain_openai"
+    class: "OpenAIEmbeddings"
+    api_key_env: "OPENAI_API_KEY"
+    base_url: ""
+    parameters:
+      model: "text-embedding-3-large"
+      dimensions: 3072
+      chunk_size: 1000
+    cost_per_1k_tokens: 0.00013
+    max_input_length: 8191
+    batch_size: 100
+    
+  fallback:
+    name: "text-embedding-3-small"
+    provider: "langchain_openai"
+    class: "OpenAIEmbeddings"
+    api_key_env: "OPENAI_API_KEY"
+    base_url: ""
+    parameters:
+      model: "text-embedding-3-small"
+      dimensions: 1536
+      chunk_size: 1000
+    cost_per_1k_tokens: 0.00002
+    max_input_length: 8191
+    batch_size: 100
+
+  # 阿里云通义千问嵌入模型
+  qwen_embedding:
+    name: "text-embedding-v1"
+    provider: "dashscope"
+    class: "DashScopeEmbeddings"
+    api_key_env: "DASHSCOPE_API_KEY"
+    base_url: "https://dashscope.aliyuncs.com/api/v1"
+    parameters:
+      model: "text-embedding-v1"
+      text_type: "document"
+      dimensions: 1536
+      chunk_size: 1000
+    cost_per_1k_tokens: 0.0007
+    max_input_length: 2048
+    batch_size: 25
+
+  # 百度嵌入模型
+  baidu_embedding:
+    name: "embedding-v1"
+    provider: "baidu"
+    class: "BaiduEmbeddings"
+    api_key_env: "BAIDU_API_KEY"
+    base_url: "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/embeddings/embedding-v1"
+    parameters:
+      model: "embedding-v1"
+      dimensions: 384
+      chunk_size: 1000
+    cost_per_1k_tokens: 0.0004
+    max_input_length: 1000
+    batch_size: 16
+
+  # 智谱嵌入模型
+  zhipu_embedding:
+    name: "embedding-2"
+    provider: "zhipu"
+    class: "ZhipuEmbeddings"
+    api_key_env: "ZHIPU_API_KEY"
+    base_url: "https://open.bigmodel.cn/api/paas/v4/embeddings"
+    parameters:
+      model: "embedding-2"
+      dimensions: 1024
+      chunk_size: 1000
+    cost_per_1k_tokens: 0.0005
+    max_input_length: 1024
+    batch_size: 100
+
+# 重排序模型配置
+reranking_models:
+  primary:
+    name: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    provider: "sentence_transformers"
+    class: "CrossEncoder"
+    base_url: ""
+    parameters:
+      max_length: 512
+      device: "auto"
+    batch_size: 32
+    
+  alternative:
+    name: "BAAI/bge-reranker-large"
+    provider: "sentence_transformers"
+    class: "CrossEncoder"
+    base_url: ""
+    parameters:
+      max_length: 512
+      device: "auto"
+    batch_size: 16
+
+  # 阿里云重排序模型
+  qwen_reranker:
+    name: "gte-rerank"
+    provider: "dashscope"
+    class: "DashScopeRerank"
+    api_key_env: "DASHSCOPE_API_KEY"
+    base_url: "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
+    parameters:
+      model: "gte-rerank"
+      return_documents: true
+      top_n: 10
+    batch_size: 20
+
+  # 百度重排序模型
+  baidu_reranker:
+    name: "bce-reranker-base_v1"
+    provider: "baidu"
+    class: "BaiduRerank"
+    api_key_env: "BAIDU_API_KEY"
+    base_url: "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/reranker/bce-reranker-base"
+    parameters:
+      model: "bce-reranker-base_v1"
+      top_n: 10
+    batch_size: 16
+
+# LangChain向量存储配置
+vector_stores:
+  primary:
+    name: "milvus"
+    provider: "langchain_milvus"
+    class: "Milvus"
+    connection_args:
+      host: "${MILVUS_HOST}"
+      port: "${MILVUS_PORT}"
+      user: "${MILVUS_USER}"
+      password: "${MILVUS_PASSWORD}"
+    collection_name: "knowledge_base"
+    
+# LangChain文档加载器配置
+document_loaders:
+  pdf:
+    class: "PyPDFLoader"
+    provider: "langchain_community"
+  docx:
+    class: "Docx2txtLoader"
+    provider: "langchain_community"
+  txt:
+    class: "TextLoader"
+    provider: "langchain_community"
+  md:
+    class: "UnstructuredMarkdownLoader"
+    provider: "langchain_unstructured"
+  web:
+    class: "WebBaseLoader"
+    provider: "langchain_community"
+
+# LangChain文本分割器配置
+text_splitters:
+  recursive:
+    class: "RecursiveCharacterTextSplitter"
+    provider: "langchain_core"
+    parameters:
+      chunk_size: 1000
+      chunk_overlap: 200
+      separators: ["\n\n", "\n", " ", ""]
+      
+  semantic:
+    class: "SemanticChunker"
+    provider: "langchain_experimental"
+    parameters:
+      embeddings: "primary"
+      breakpoint_threshold_type: "percentile"
+      
+  token:
+    class: "TokenTextSplitter"
+    provider: "langchain_core"
+    parameters:
+      chunk_size: 1000
+      chunk_overlap: 200
+
+# LangGraph工作流配置
+langgraph:
+  # RAG工作流配置
+  rag_workflow:
+    nodes:
+      - query_analyzer
+      - retrieval_router
+      - knowledge_retriever
+      - web_searcher
+      - information_fusion
+      - context_builder
+      - response_generator
+    
+    edges:
+      - from: "query_analyzer"
+        to: "retrieval_router"
+      - from: "retrieval_router"
+        to: ["knowledge_retriever", "web_searcher"]
+      - from: ["knowledge_retriever", "web_searcher"]
+        to: "information_fusion"
+      - from: "information_fusion"
+        to: "context_builder"
+      - from: "context_builder"
+        to: "response_generator"
+    
+    # 条件路由配置
+    conditional_edges:
+      retrieval_router:
+        conditions:
+          - condition: "needs_knowledge_base"
+            next: "knowledge_retriever"
+          - condition: "needs_web_search"
+            next: "web_searcher"
+          - condition: "needs_both"
+            next: ["knowledge_retriever", "web_searcher"]
+
+# LangSmith配置（可选）
+langsmith:
+  enabled: false
+  api_key_env: "LANGSMITH_API_KEY"
+  project_name: "base-agent-engineering"
+  tracing: true
+
+# 默认模型选择
+default_models:
+  chat: "primary"
+  embedding: "primary"
+  reranking: "primary"
+  vector_store: "primary"
+  text_splitter: "recursive"
+
+# 模型切换策略
+model_switching:
+  enabled: true
+  fallback_chain:
+    chat: ["primary", "qwen_turbo", "fallback"]
+    embedding: ["primary", "qwen_embedding", "fallback"]
+    reranking: ["primary", "qwen_reranker", "alternative"]
+  
+  # 自动切换条件
+  switch_conditions:
+    rate_limit: true      # 遇到速率限制时切换
+    api_error: true       # API错误时切换
+    timeout: true         # 超时时切换
+    cost_threshold: 100   # 成本超过阈值时切换到便宜模型
+
+# 性能优化配置
+performance:
+  # 并发控制
+  max_concurrent_requests:
+    chat: 10
+    embedding: 20
+    reranking: 15
+  
+  # 缓存配置
+  cache:
+    enabled: true
+    ttl: 3600  # 1小时
+    max_size: 1000
+    
+  # 批处理配置
+  batch_processing:
+    enabled: true
+    max_batch_size:
+      embedding: 100
+      reranking: 32
+    batch_timeout: 5.0  # 5秒
+
+# 监控配置
+monitoring:
+  # 日志配置
+  logging:
+    level: "INFO"
+    format: "json"
+    include_tokens: true
+    include_cost: true
+  
+  # 成本监控
+  cost_tracking:
+    enabled: true
+    daily_limit: 50.0   # 每日成本限制（美元）
+    alert_threshold: 0.8  # 80%时告警
+  
+  # 性能监控
+  performance_tracking:
+    enabled: true
+    response_time_threshold: 10.0  # 10秒
+    error_rate_threshold: 0.05     # 5%错误率
