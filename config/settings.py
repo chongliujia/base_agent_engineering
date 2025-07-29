@@ -18,7 +18,8 @@ if env_file.exists():
 
 # LangChain导入
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_community.vectorstores import Milvus
+# 使用新的 langchain-milvus 包替代弃用的导入
+from langchain_milvus import Milvus
 from langchain_core.language_models import BaseChatModel
 from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStore
@@ -210,11 +211,32 @@ class ModelConfig:
         provider = model_config["provider"]
         
         if provider == "langchain_openai":
-            # 原生OpenAI嵌入
-            model = OpenAIEmbeddings(
-                api_key=os.getenv(model_config["api_key_env"]),
-                **model_config["parameters"]
-            )
+            # 构建嵌入模型参数
+            embedding_params = {
+                "api_key": os.getenv(model_config["api_key_env"]),
+                "model": model_config["parameters"]["model"],  # 明确指定模型名称
+            }
+            
+            # 添加base_url（如果配置了）
+            if "base_url" in model_config:
+                embedding_params["base_url"] = model_config["base_url"]
+            
+            # 添加其他参数（排除model参数避免重复）
+            for key, value in model_config["parameters"].items():
+                if key != "model":  # 避免重复添加model参数
+                    embedding_params[key] = value
+            
+            model = OpenAIEmbeddings(**embedding_params)
+        elif provider == "langchain_community":
+            # DashScope嵌入模型
+            from langchain_community.embeddings import DashScopeEmbeddings
+            
+            embedding_params = {
+                "model": model_config["parameters"]["model"],
+                "dashscope_api_key": os.getenv(model_config["api_key_env"])
+            }
+            
+            model = DashScopeEmbeddings(**embedding_params)
         else:
             raise ValueError(f"不支持的嵌入模型provider: {provider}")
         
@@ -241,11 +263,17 @@ class ModelConfig:
             for key, value in store_config["connection_args"].items():
                 connection_args[key] = self._resolve_env_vars(value)
             
-            store = Milvus(
-                embedding_function=embedding_model,
-                connection_args=connection_args,
-                collection_name=store_config["collection_name"]
-            )
+            # 构建 Milvus 参数
+            milvus_params = {
+                "embedding_function": embedding_model,
+                "connection_args": connection_args,
+                "collection_name": store_config["collection_name"],
+                "enable_dynamic_field": store_config.get("enable_dynamic_field", True),
+                "auto_id": store_config.get("auto_id", True),
+                "drop_old": store_config.get("drop_old", False)
+            }
+            
+            store = Milvus(**milvus_params)
         else:
             raise ValueError(f"不支持的向量存储provider: {store_config['provider']}")
         

@@ -10,7 +10,7 @@ import logging
 import os
 
 from config.settings import get_settings, get_model_config
-# from app.api.routes import chat, search, knowledge_base, admin
+from app.api import knowledge_base  # 新增知识库API
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -130,10 +130,12 @@ async def root():
             "混合检索策略",
             "智能上下文工程",
             "流式响应",
-            "模型fallback"
+            "模型fallback",
+            "知识库管理"  # 新增功能
         ],
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
+        "knowledge_base_api": "/api/v1/knowledge-base"  # 新增API路径
     }
 
 # 模型信息接口
@@ -164,10 +166,12 @@ async def get_models_info():
             content={"error": "Failed to get model info", "message": str(e)}
         )
 
-# 注册路由（暂时注释，等待创建）
+# 注册知识库API路由
+app.include_router(knowledge_base.router, prefix="/api/v1/knowledge-base", tags=["knowledge_base"])
+
+# 注册其他路由（暂时注释，等待创建）
 # app.include_router(chat.router, prefix="/api/v1", tags=["chat"])
 # app.include_router(search.router, prefix="/api/v1", tags=["search"])
-# app.include_router(knowledge_base.router, prefix="/api/v1", tags=["knowledge_base"])
 # app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
 
 # 全局异常处理
@@ -190,6 +194,7 @@ async def startup_event():
     logger.info("Starting Base Agent Engineering RAG API...")
     logger.info(f"LangSmith tracing: {settings.langsmith_tracing}")
     logger.info(f"Debug mode: {settings.debug}")
+    logger.info("Knowledge Base API available at /api/v1/knowledge-base")
 
 # 关闭事件
 @app.on_event("shutdown")

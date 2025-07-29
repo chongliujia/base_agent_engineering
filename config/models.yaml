@@ -38,34 +38,30 @@ chat_models:
 
 # LangChain嵌入模型配置
 embedding_models:
-  # OpenAI嵌入模型
+  # DashScope嵌入模型 (通义千问)
   primary:
     name: "text-embedding-v4"
-    provider: "langchain_openai"
-    class: "OpenAIEmbeddings"
+    provider: "langchain_community"
+    class: "DashScopeEmbeddings"
     api_key_env: "DASHSCOPE_API_KEY"
-    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
     parameters:
-      model: "text-embedding-3-large"
-      dimensions: 2048
-      chunk_size: 1000
-    cost_per_1k_tokens: 0.00013
-    max_input_length: 8191
-    batch_size: 100
+      model: "text-embedding-v4"
+      dashscope_api_key: "${DASHSCOPE_API_KEY}"
+    cost_per_1k_tokens: 0.0005
+    max_input_length: 8192
+    batch_size: 10
     
   fallback:
-    name: "text-embedding-v4"
-    provider: "langchain_openai"
-    class: "OpenAIEmbeddings"
+    name: "text-embedding-v3"
+    provider: "langchain_community"
+    class: "DashScopeEmbeddings"
     api_key_env: "DASHSCOPE_API_KEY"
-    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
     parameters:
-      model: "text-embedding-3-small"
-      dimensions: 2048
-      chunk_size: 1000
-    cost_per_1k_tokens: 0.00002
-    max_input_length: 8191
-    batch_size: 100
+      model: "text-embedding-v3"
+      dashscope_api_key: "${DASHSCOPE_API_KEY}"
+    cost_per_1k_tokens: 0.0005
+    max_input_length: 8192
+    batch_size: 10
 
 # 重排序模型配置
 reranking_models:
@@ -94,6 +90,12 @@ vector_stores:
       user: "${MILVUS_USER:}"
       password: "${MILVUS_PASSWORD:}"
     collection_name: "knowledge_base"
+    # 启用动态字段支持，允许添加任意 metadata 字段
+    enable_dynamic_field: true
+    # 设置自动生成主键
+    auto_id: true
+    # 删除旧集合（开发阶段）
+    drop_old: false
 
 # LangChain文档加载器配置
 document_loaders:
