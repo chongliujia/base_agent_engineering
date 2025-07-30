@@ -10,7 +10,7 @@ import logging
 import os
 
 from config.settings import get_settings, get_model_config
-from app.api import knowledge_base  # 新增知识库API
+from app.api import knowledge_base, chat  # API模块
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -131,11 +131,18 @@ async def root():
             "智能上下文工程",
             "流式响应",
             "模型fallback",
-            "知识库管理"  # 新增功能
+            "知识库管理",
+            "联网搜索",
+            "AI咨询助手",
+            "可配置提示词"
         ],
         "docs": "/docs",
         "health": "/health",
-        "knowledge_base_api": "/api/v1/knowledge-base"  # 新增API路径
+        "apis": {
+            "knowledge_base": "/api/v1/knowledge-base",
+            "chat": "/api/v1/chat",
+            "prompts": "/api/v1/prompts"
+        }
     }
 
 # 模型信息接口
@@ -166,11 +173,11 @@ async def get_models_info():
             content={"error": "Failed to get model info", "message": str(e)}
         )
 
-# 注册知识库API路由
+# 注册API路由
 app.include_router(knowledge_base.router, prefix="/api/v1/knowledge-base", tags=["knowledge_base"])
+app.include_router(chat.router, prefix="/api/v1", tags=["chat"])
 
-# 注册其他路由（暂时注释，等待创建）
-# app.include_router(chat.router, prefix="/api/v1", tags=["chat"])
+# 注册其他路由（预留）
 # app.include_router(search.router, prefix="/api/v1", tags=["search"])
 # app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
 
@@ -194,13 +201,31 @@ async def startup_event():
     logger.info("Starting Base Agent Engineering RAG API...")
     logger.info(f"LangSmith tracing: {settings.langsmith_tracing}")
     logger.info(f"Debug mode: {settings.debug}")
-    logger.info("Knowledge Base API available at /api/v1/knowledge-base")
+    logger.info("Available APIs:")
+    logger.info("  - Knowledge Base: /api/v1/knowledge-base")
+    logger.info("  - AI Chat: /api/v1/chat")
+    logger.info("  - Prompts: /api/v1/prompts")
+    
+    # 初始化搜索连接
+    try:
+        from src.search.web_search import web_search_manager
+        logger.info(f"Web search enabled: {bool(settings.tavily_api_key)}")
+    except Exception as e:
+        logger.warning(f"Web search initialization failed: {e}")
 
 # 关闭事件
 @app.on_event("shutdown")
 async def shutdown_event():
     """应用关闭时的清理"""
     logger.info("Shutting down Base Agent Engineering RAG API...")
+    
+    # 关闭搜索连接
+    try:
+        from src.search.web_search import close_search_connections
+        await close_search_connections()
+        logger.info("Web search connections closed")
+    except Exception as e:
+        logger.warning(f"Error closing web search connections: {e}")
 
 if __name__ == "__main__":
     import uvicorn

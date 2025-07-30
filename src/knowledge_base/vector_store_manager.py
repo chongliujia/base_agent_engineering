@@ -13,10 +13,11 @@ from src.utils.async_utils import run_in_isolated_loop_async, run_in_thread_pool
 
 
 class VectorStoreManager:
-    """向量存储管理器"""
+    """向量存储管理器 - 支持动态集合"""
     
-    def __init__(self, batch_size: int = 10):
-        self.vector_store = model_config.get_vector_store()
+    def __init__(self, batch_size: int = 10, collection_name: str = None):
+        self.collection_name = collection_name
+        self.vector_store = model_config.get_vector_store(collection_name=collection_name)
         self.batch_size = batch_size
     
     async def add_documents(self, documents: List[Document], 
@@ -195,22 +196,72 @@ class VectorStoreManager:
     def get_collection_stats(self) -> Dict[str, Any]:
         """获取集合统计信息"""
         try:
-            # 这里需要根据具体的向量存储实现来获取统计信息
-            # Milvus的示例
-            if hasattr(self.vector_store, 'col'):
-                collection = self.vector_store.col
-                stats = {
-                    "collection_name": collection.name,
-                    "total_entities": collection.num_entities,
-                    "description": collection.description,
-                    "schema": str(collection.schema)
-                }
+            # 尝试多种方式获取统计信息
+            stats = {}
+            
+            # 方法1: 检查是否有Milvus集合对象
+            if hasattr(self.vector_store, 'col') and self.vector_store.col:
+                try:
+                    collection = self.vector_store.col
+                    stats = {
+                        "collection_name": collection.name,
+                        "total_entities": collection.num_entities,
+                        "description": getattr(collection, 'description', 'N/A'),
+                    }
+                    return stats
+                except Exception as e:
+                    print(f"⚠️ Milvus集合统计获取失败: {e}")
+            
+            # 方法2: 检查是否有collection属性
+            if hasattr(self.vector_store, 'collection') and self.vector_store.collection:
+                try:
+                    collection = self.vector_store.collection
+                    stats = {
+                        "collection_name": getattr(collection, 'name', 'N/A'),
+                        "total_entities": getattr(collection, 'num_entities', 0),
+                        "description": getattr(collection, 'description', 'N/A'),
+                    }
+                    return stats
+                except Exception as e:
+                    print(f"⚠️ 集合统计获取失败: {e}")
+            
+            # 方法3: 尝试通过搜索来估算文档数量
+            try:
+                # 执行一个简单的搜索来检查是否有数据
+                test_docs = self.vector_store.similarity_search("test", k=1)
+                if test_docs:
+                    # 如果能搜索到结果，说明有数据，但无法准确计数
+                    stats = {
+                        "collection_name": getattr(self.vector_store, 'collection_name', 'default_collection'),
+                        "total_entities": "有数据但无法精确计数",
+                        "description": "通过搜索验证有数据存在",
+                        "status": "有数据"
+                    }
+                else:
+                    stats = {
+                        "collection_name": getattr(self.vector_store, 'collection_name', 'default_collection'),
+                        "total_entities": 0,
+                        "description": "集合为空或无法访问",
+                        "status": "空集合"
+                    }
                 return stats
-            else:
-                return {"message": "统计信息不可用"}
+            except Exception as e:
+                print(f"⚠️ 搜索测试失败: {e}")
+            
+            # 方法4: 返回基本信息
+            return {
+                "collection_name": self.collection_name or getattr(self.vector_store, 'collection_name', 'N/A'),
+                "total_entities": "N/A",
+                "description": "无法获取统计信息",
+                "error": "所有统计方法都失败"
+            }
                 
         except Exception as e:
-            return {"error": f"获取统计信息失败: {str(e)}"}
+            return {
+                "collection_name": self.collection_name or "N/A",
+                "total_entities": "N/A", 
+                "error": f"获取统计信息失败: {str(e)}"
+            }
     
     async def delete_by_metadata(self, filter_metadata: Dict[str, Any]) -> Dict[str, Any]:
         """根据元数据删除文档，优先使用同步方法避免事件循环冲突"""

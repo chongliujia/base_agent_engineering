@@ -1,0 +1,54 @@
+{
+  "processing_history": [
+    {
+      "operation": "add_directory",
+      "directory_path": "test_strategies",
+      "recursive": true,
+      "auto_strategy": true,
+      "chunking_strategy": "recursive",
+      "strategy_params": {
+        "chunk_size": 1000,
+        "chunk_overlap": 200,
+        "separators": [
+          "\n\n",
+          "\n",
+          " ",
+          ""
+        ]
+      },
+      "timestamp": "2025-07-30T01:16:59.685601",
+      "document_summary": {
+        "total_documents": 1,
+        "total_chunks": 1,
+        "total_size_bytes": 301,
+        "total_size_mb": 0.0,
+        "file_types": {
+          ".txt": 1
+        },
+        "chunking_strategies": {
+          "recursive": 1
+        },
+        "sources": [
+          "test_strategies/test.txt"
+        ]
+      },
+      "vector_result": {
+        "success": true,
+        "total_documents": 1,
+        "added_count": 1,
+        "failed_count": 0,
+        "success_rate": 100.0,
+        "batch_results": [
+          {
+            "batch": 1,
+            "success": true,
+            "count": 1,
+            "message": "成功添加 1 个分块"
+          }
+        ],
+        "timestamp": "2025-07-30T01:16:59.685546"
+      }
+    }
+  ],
+  "last_updated": "2025-07-30T01:16:59.685754"
+}

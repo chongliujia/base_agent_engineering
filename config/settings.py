@@ -86,6 +86,10 @@ class Settings(BaseSettings):
     upload_max_size: str = Field(default="100MB", env="UPLOAD_MAX_SIZE")
     supported_file_types: str = Field(default="pdf,txt,md,docx,pptx", env="SUPPORTED_FILE_TYPES")
     
+    # 多知识库配置
+    default_collection_name: str = Field(default="knowledge_base", env="DEFAULT_COLLECTION_NAME")
+    current_collection_name: str = Field(default="knowledge_base", env="CURRENT_COLLECTION_NAME")
+    
     # 监控配置
     enable_metrics: bool = Field(default=True, env="ENABLE_METRICS")
     metrics_port: int = Field(default=9090, env="METRICS_PORT")
@@ -243,13 +247,22 @@ class ModelConfig:
         self._embedding_models[model_name] = model
         return model
     
-    def get_vector_store(self, store_name: str = None) -> VectorStore:
-        """获取LangChain向量存储实例"""
+    def get_vector_store(self, store_name: str = None, collection_name: str = None) -> VectorStore:
+        """获取LangChain向量存储实例，支持动态集合名称"""
         if store_name is None:
             store_name = self._config["default_models"]["vector_store"]
         
-        if store_name in self._vector_stores:
-            return self._vector_stores[store_name]
+        # 如果指定了collection_name，则创建新的实例
+        if collection_name is None:
+            # 尝试从设置中获取当前集合名称
+            settings = get_settings()
+            collection_name = settings.current_collection_name
+        
+        # 使用collection_name作为缓存key的一部分
+        cache_key = f"{store_name}_{collection_name}"
+        
+        if cache_key in self._vector_stores:
+            return self._vector_stores[cache_key]
         
         if store_name not in self._config["vector_stores"]:
             raise ValueError(f"向量存储 '{store_name}' 未找到")
@@ -263,11 +276,11 @@ class ModelConfig:
             for key, value in store_config["connection_args"].items():
                 connection_args[key] = self._resolve_env_vars(value)
             
-            # 构建 Milvus 参数
+            # 构建 Milvus 参数，使用动态集合名称
             milvus_params = {
                 "embedding_function": embedding_model,
                 "connection_args": connection_args,
-                "collection_name": store_config["collection_name"],
+                "collection_name": collection_name,  # 使用动态集合名称
                 "enable_dynamic_field": store_config.get("enable_dynamic_field", True),
                 "auto_id": store_config.get("auto_id", True),
                 "drop_old": store_config.get("drop_old", False)
@@ -277,7 +290,7 @@ class ModelConfig:
         else:
             raise ValueError(f"不支持的向量存储provider: {store_config['provider']}")
         
-        self._vector_stores[store_name] = store
+        self._vector_stores[cache_key] = store
         return store
     
     def get_reranking_model(self, model_name: str = None) -> Any:

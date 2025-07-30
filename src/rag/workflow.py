@@ -2,6 +2,7 @@
 基于LangGraph的RAG工作流
 """
 
+import time
 from typing import Dict, Any, List, Optional
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
@@ -36,14 +37,12 @@ class RAGWorkflow:
         self.workflow = self._build_workflow()
     
     def _build_workflow(self) -> StateGraph:
-        """构建LangGraph工作流"""
+        """构建简化的LangGraph工作流 - 统一并行检索"""
         workflow = StateGraph(RAGState)
         
-        # 添加节点
+        # 添加节点 - 简化版本
         workflow.add_node("query_analyzer", self.analyze_query)
-        workflow.add_node("retrieval_router", self.route_retrieval)
-        workflow.add_node("knowledge_retriever", self.retrieve_knowledge)
-        workflow.add_node("web_searcher", self.search_web)
+        workflow.add_node("parallel_retrieval", self.parallel_retrieval)
         workflow.add_node("information_fusion", self.fuse_information)
         workflow.add_node("context_builder", self.build_context)
         workflow.add_node("response_generator", self.generate_response)
@@ -51,23 +50,9 @@ class RAGWorkflow:
         # 设置入口点
         workflow.set_entry_point("query_analyzer")
         
-        # 添加边
-        workflow.add_edge("query_analyzer", "retrieval_router")
-        
-        # 条件路由
-        workflow.add_conditional_edges(
-            "retrieval_router",
-            self.decide_retrieval_strategy,
-            {
-                "knowledge_only": "knowledge_retriever",
-                "web_only": "web_searcher", 
-                "both": "knowledge_retriever",  # 先执行知识库检索
-                "none": "context_builder"
-            }
-        )
-        
-        workflow.add_edge("knowledge_retriever", "information_fusion")
-        workflow.add_edge("web_searcher", "information_fusion")
+        # 简化的线性流程
+        workflow.add_edge("query_analyzer", "parallel_retrieval")
+        workflow.add_edge("parallel_retrieval", "information_fusion")
         workflow.add_edge("information_fusion", "context_builder")
         workflow.add_edge("context_builder", "response_generator")
         workflow.add_edge("response_generator", END)
@@ -75,75 +60,152 @@ class RAGWorkflow:
         return workflow.compile()
     
     async def analyze_query(self, state: RAGState) -> RAGState:
-        """分析查询意图"""
-        # 这里可以添加查询分析逻辑
-        # 例如：分类查询类型、提取关键词、判断是否需要实时信息等
+        """分析查询意图和特征"""
+        # 简化的查询分析，为并行检索做准备
+        query = state.query
         
-        state.metadata["query_type"] = "general"  # 简化示例
-        state.metadata["needs_realtime"] = False
-        state.metadata["complexity"] = "medium"
+        # 基础查询特征分析
+        state.metadata.update({
+            "query_length": len(query),
+            "has_question_mark": "?" in query,
+            "has_keywords": any(kw in query.lower() for kw in ["什么", "如何", "怎么", "为什么"]),
+            "timestamp": time.time()
+        })
         
+        print(f"🔍 查询分析: {query[:30]}{'...' if len(query) > 30 else ''}")
         return state
     
-    async def route_retrieval(self, state: RAGState) -> RAGState:
-        """路由检索策略"""
-        # 根据查询分析结果决定检索策略
-        query_type = state.metadata.get("query_type", "general")
-        needs_realtime = state.metadata.get("needs_realtime", False)
+    async def parallel_retrieval(self, state: RAGState) -> RAGState:
+        """核心并行检索 - 同时执行知识库和网络搜索"""
+        import asyncio
         
-        if needs_realtime:
-            state.metadata["retrieval_strategy"] = "web_only"
-        elif "知识库" in state.query or "文档" in state.query:
-            state.metadata["retrieval_strategy"] = "knowledge_only"
-        else:
-            state.metadata["retrieval_strategy"] = "both"
+        print("🔄 并行检索中...")
+        start_time = time.time()
         
-        return state
-    
-    def decide_retrieval_strategy(self, state: RAGState) -> str:
-        """决定检索策略的条件函数"""
-        return state.metadata.get("retrieval_strategy", "both")
-    
-    async def retrieve_knowledge(self, state: RAGState) -> RAGState:
-        """从知识库检索"""
+        # 创建并行任务
+        knowledge_task = self._retrieve_knowledge_task(state)
+        web_task = self._search_web_task(state)
+        
         try:
-            # 使用向量存储检索相关文档
-            docs = await self.vector_store.asimilarity_search(
-                state.query, 
-                k=5
+            # 并行执行，允许部分失败
+            knowledge_results, web_results = await asyncio.gather(
+                knowledge_task, 
+                web_task,
+                return_exceptions=True
             )
-            state.documents.extend(docs)
-            state.metadata["knowledge_retrieved"] = len(docs)
             
-            # 如果策略是both，继续执行web搜索
-            if state.metadata.get("retrieval_strategy") == "both":
-                return await self.search_web(state)
+            # 统计成功的检索源
+            successful_sources = []
+            total_results = 0
+            
+            # 处理知识库检索结果
+            if isinstance(knowledge_results, Exception):
+                print(f"📚 知识库: ❌ {str(knowledge_results)[:50]}...")
+                state.metadata["knowledge_error"] = str(knowledge_results)
+                state.metadata["knowledge_retrieved"] = 0
+            else:
+                state.documents.extend(knowledge_results)
+                kb_count = len(knowledge_results)
+                state.metadata["knowledge_retrieved"] = kb_count
+                total_results += kb_count
+                if kb_count > 0:
+                    successful_sources.append("知识库")
+                    print(f"📚 知识库: ✅ {kb_count}个文档")
+            
+            # 处理网络搜索结果
+            if isinstance(web_results, Exception):
+                print(f"🌐 网络搜索: ❌ {str(web_results)[:50]}...")
+                state.metadata["web_error"] = str(web_results)
+                state.metadata["web_retrieved"] = 0
+            else:
+                state.web_results.extend(web_results)
+                web_count = len(web_results)
+                state.metadata["web_retrieved"] = web_count
+                total_results += web_count
+                if web_count > 0:
+                    successful_sources.append("网络搜索")
+                    print(f"🌐 网络搜索: ✅ {web_count}个结果")
+            
+            # 记录检索统计
+            parallel_time = time.time() - start_time
+            state.metadata.update({
+                "parallel_retrieval_time": round(parallel_time, 2),
+                "total_results": total_results,
+                "successful_sources": successful_sources,
+                "retrieval_mode": self._determine_actual_mode(successful_sources)
+            })
+            
+            # 输出检索摘要
+            if successful_sources:
+                sources_str = " + ".join(successful_sources)
+                print(f"⚡ 检索完成: {sources_str} ({total_results}个结果, {parallel_time:.2f}s)")
+            else:
+                print(f"⚠️ 检索完成: 无可用结果 ({parallel_time:.2f}s)")
             
         except Exception as e:
-            state.metadata["knowledge_error"] = str(e)
+            state.metadata["parallel_error"] = str(e)
+            print(f"❌ 并行检索系统错误: {e}")
         
         return state
     
-    async def search_web(self, state: RAGState) -> RAGState:
-        """网络搜索"""
+    def _determine_actual_mode(self, successful_sources: list) -> str:
+        """根据实际检索结果确定执行模式"""
+        if not successful_sources:
+            return "无结果"
+        elif len(successful_sources) == 2:
+            return "混合模式"
+        elif "知识库" in successful_sources:
+            return "知识库模式"
+        elif "网络搜索" in successful_sources:
+            return "网络模式"
+        else:
+            return "未知模式"
+    
+    async def _retrieve_knowledge_task(self, state: RAGState) -> List:
+        """知识库检索任务 - 用于并行执行"""
         try:
-            # 这里应该集成实际的网络搜索API
-            # 暂时使用模拟数据
-            web_results = [
-                {
-                    "title": "示例搜索结果",
-                    "content": "这是一个示例搜索结果内容",
-                    "url": "https://example.com",
-                    "score": 0.9
-                }
-            ]
-            state.web_results.extend(web_results)
-            state.metadata["web_retrieved"] = len(web_results)
+            # 使用知识库管理器来避免异步循环问题
+            from src.knowledge_base.knowledge_base_manager import get_knowledge_base_manager
             
+            kb_manager = get_knowledge_base_manager()
+            result = await kb_manager.search(state.query, k=3, include_scores=False)
+            
+            if result.get("success"):
+                # 转换为Document对象
+                docs = []
+                for item in result.get("results", []):
+                    from langchain_core.documents import Document
+                    doc = Document(
+                        page_content=item["content"], 
+                        metadata=item["metadata"]
+                    )
+                    docs.append(doc)
+                return docs
+            else:
+                raise Exception(result.get("message", "知识库搜索失败"))
+                
         except Exception as e:
-            state.metadata["web_error"] = str(e)
-        
-        return state
+            # 抛出异常供并行处理器捕获
+            raise e
+    
+    async def _search_web_task(self, state: RAGState) -> List:
+        """网络搜索任务 - 用于并行执行"""
+        try:
+            from src.search.web_search import search_web
+            
+            web_results = await search_web(
+                query=state.query,
+                max_results=3,  # 限制为3个结果
+                search_config={
+                    "search_depth": "advanced",
+                    "exclude_domains": ["pinterest.com", "twitter.com", "instagram.com"]
+                }
+            )
+            
+            return web_results if web_results else []
+        except Exception as e:
+            # 抛出异常供并行处理器捕获
+            raise e
     
     async def fuse_information(self, state: RAGState) -> RAGState:
         """融合信息"""
@@ -175,46 +237,139 @@ class RAGWorkflow:
         """构建上下文"""
         sources = state.metadata.get("fused_sources", [])
         
-        # 构建上下文字符串
-        context_parts = []
-        for i, source in enumerate(sources[:5]):  # 限制最多5个源
-            context_parts.append(f"来源{i+1} ({source['source']}):\n{source['content']}")
+        # 分别构建知识库和网络搜索上下文
+        knowledge_sources = [s for s in sources if s['source'] == 'knowledge_base']
+        web_sources = [s for s in sources if s['source'] == 'web_search']
         
-        state.context = "\n\n".join(context_parts)
+        # 构建知识库上下文
+        knowledge_context = ""
+        if knowledge_sources:
+            kb_parts = []
+            for i, source in enumerate(knowledge_sources[:3]):
+                metadata = source.get('metadata', {})
+                source_info = f"文档: {metadata.get('filename', '未知')}"
+                kb_parts.append(f"{source_info}\n内容: {source['content'][:500]}")
+            knowledge_context = "\n\n".join(kb_parts)
+        
+        # 构建网络搜索上下文  
+        web_context = ""
+        if web_sources:
+            web_parts = []
+            for i, source in enumerate(web_sources[:3]):
+                metadata = source.get('metadata', {})
+                source_info = f"标题: {metadata.get('title', '未知')}\n链接: {metadata.get('url', '未知')}"
+                web_parts.append(f"{source_info}\n内容: {source['content'][:500]}")
+            web_context = "\n\n".join(web_parts)
+        
+        # 保存结构化上下文
+        state.metadata["knowledge_context"] = knowledge_context
+        state.metadata["web_context"] = web_context
+        
+        # 构建完整上下文（向后兼容）
+        all_parts = []
+        if knowledge_context:
+            all_parts.append(f"=== 知识库信息 ===\n{knowledge_context}")
+        if web_context:
+            all_parts.append(f"=== 网络搜索信息 ===\n{web_context}")
+        
+        state.context = "\n\n".join(all_parts)
         return state
     
-    async def generate_response(self, state: RAGState) -> RAGState:
-        """生成回答"""
+    async def generate_response(self, state: RAGState, stream_callback=None) -> RAGState:
+        """智能回答生成 - 基于实际检索结果选择提示词"""
         try:
-            # 构建提示词
-            prompt = f"""基于以下上下文信息回答用户问题。
-
-上下文信息：
-{state.context}
+            from src.prompts.prompt_manager import render_prompt
+            
+            # 根据实际检索模式选择提示词策略
+            retrieval_mode = state.metadata.get("retrieval_mode", "混合模式")
+            knowledge_context = state.metadata.get("knowledge_context", "")
+            web_context = state.metadata.get("web_context", "")
+            
+            # 智能提示词选择
+            if retrieval_mode == "知识库模式" and knowledge_context:
+                prompt = render_prompt("knowledge_only", 
+                                     knowledge_context=knowledge_context,
+                                     query=state.query)
+                prompt_type = "knowledge_only"
+            elif retrieval_mode == "网络模式" and web_context:
+                prompt = render_prompt("web_only",
+                                     web_context=web_context, 
+                                     query=state.query)
+                prompt_type = "web_only"
+            elif retrieval_mode == "混合模式":
+                # 使用综合RAG提示词
+                prompt = render_prompt("rag_qa",
+                                     knowledge_context=knowledge_context or "暂无相关知识库信息",
+                                     web_context=web_context or "暂无相关网络搜索信息",
+                                     query=state.query)
+                prompt_type = "rag_qa"
+            else:
+                # 无检索结果的回答
+                prompt = f"""作为AI助手，我需要基于现有知识回答用户问题。
 
 用户问题：{state.query}
 
-请提供准确、有用的回答，并在适当时引用来源。"""
+由于当前没有找到相关的知识库文档或网络搜索结果，我将基于训练数据中的知识来回答，但请注意信息可能不是最新的。
+
+回答："""
+                prompt_type = "fallback"
 
             # 使用聊天模型生成回答
             messages = [HumanMessage(content=prompt)]
-            response = await self.chat_model.ainvoke(messages)
             
-            state.response = response.content
+            if stream_callback:
+                # 流式输出模式
+                full_response = ""
+                async for chunk in self.chat_model.astream(messages):
+                    if hasattr(chunk, 'content') and chunk.content:
+                        full_response += chunk.content
+                        await stream_callback(chunk.content)
+                
+                state.response = full_response
+            else:
+                # 非流式输出模式
+                response = await self.chat_model.ainvoke(messages)
+                state.response = response.content
+            
             state.messages.append(HumanMessage(content=state.query))
-            state.messages.append(AIMessage(content=response.content))
+            state.messages.append(AIMessage(content=state.response))
+            
+            # 记录生成信息
+            state.metadata.update({
+                "prompt_type_used": prompt_type,
+                "response_length": len(state.response),
+                "generation_successful": True
+            })
+            
+            print(f"💬 回答生成: {prompt_type} ({len(state.response)}字符)")
             
         except Exception as e:
             state.response = f"抱歉，生成回答时出现错误：{str(e)}"
-            state.metadata["generation_error"] = str(e)
+            state.metadata.update({
+                "generation_error": str(e),
+                "generation_successful": False
+            })
+            print(f"❌ 回答生成失败: {e}")
         
         return state
     
-    async def run(self, query: str) -> RAGState:
+    async def run(self, query: str, stream_callback=None) -> RAGState:
         """运行RAG工作流"""
         initial_state = RAGState(query=query)
-        final_state = await self.workflow.ainvoke(initial_state)
-        return final_state
+        
+        # 由于LangGraph不直接支持流式回调，我们需要手动执行步骤
+        if stream_callback:
+            # 手动执行工作流步骤以支持流式输出
+            state = await self.analyze_query(initial_state)
+            state = await self.parallel_retrieval(state)
+            state = await self.fuse_information(state)
+            state = await self.build_context(state)
+            state = await self.generate_response(state, stream_callback)
+            return state
+        else:
+            # 使用标准工作流
+            final_state = await self.workflow.ainvoke(initial_state)
+            return final_state
 
 
 # 创建全局工作流实例
