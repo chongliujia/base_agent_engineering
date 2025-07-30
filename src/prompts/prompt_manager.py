@@ -4,6 +4,7 @@
 
 import json
 import yaml
+import re
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from datetime import datetime
@@ -57,11 +58,11 @@ class PromptManager:
     def _load_built_in_prompts(self):
         """加载内置提示词模板"""
         
-        # RAG问答提示词
+        # RAG问答提示词（支持Markdown）
         self.built_in_prompts["rag_qa"] = PromptTemplate(
             name="rag_qa",
             version="1.0",
-            description="基于知识库和网络搜索的问答提示词",
+            description="基于知识库和网络搜索的问答提示词，支持Markdown格式",
             template="""你是一个专业的AI助手，能够基于知识库文档和网络搜索结果回答用户问题。
 
 ## 上下文信息
@@ -79,22 +80,28 @@ class PromptManager:
 3. **引用来源**：明确标注信息来源
 4. **结构化回答**：使用清晰的段落和要点
 5. **诚实回应**：如果信息不足，请诚实说明
-6. **格式要求**：请使用纯文本格式回答，不要使用markdown语法（如**粗体**、*斜体*、`代码`、[链接]()等）
+6. **Markdown格式**：请使用Markdown语法来优化回答格式：
+   - 使用 **粗体** 强调重要概念
+   - 使用 *斜体* 标注专业术语
+   - 使用有序列表 (1. 2. 3.) 或无序列表 (- ) 组织信息
+   - 使用 `代码格式` 标注技术术语
+   - 使用 > 引用重要信息
+   - 使用 ### 子标题组织内容结构
 
 ## 用户问题：
 {query}
 
 ## 回答：
-请基于上述上下文信息，为用户提供准确、全面的回答。""",
+请基于上述上下文信息，使用Markdown格式为用户提供准确、全面且格式优美的回答。""",
             variables=["knowledge_context", "web_context", "query"],
             category="rag"
         )
         
-        # 纯知识库问答
+        # 纯知识库问答（支持Markdown）
         self.built_in_prompts["knowledge_only"] = PromptTemplate(
             name="knowledge_only", 
             version="1.0",
-            description="仅基于知识库的问答提示词",
+            description="仅基于知识库的问答提示词，支持Markdown格式",
             template="""你是一个专业的文档助手，专门基于知识库中的文档内容回答用户问题。
 
 ## 知识库上下文：
@@ -105,7 +112,12 @@ class PromptManager:
 - 如果文档中没有相关信息，请明确说明
 - 引用具体的文档片段支持你的回答
 - 保持回答的准确性和专业性
-- 使用纯文本格式，不要使用markdown语法
+- **使用Markdown格式**优化回答展示：
+  - 使用 **粗体** 强调关键概念
+  - 使用 *斜体* 标注文档来源
+  - 使用列表组织信息要点
+  - 使用 > 引用文档原文
+  - 使用 ### 组织答案结构
 
 ## 用户问题：
 {query}
@@ -115,11 +127,11 @@ class PromptManager:
             category="knowledge"
         )
         
-        # 网络搜索问答
+        # 网络搜索问答（支持Markdown）
         self.built_in_prompts["web_only"] = PromptTemplate(
             name="web_only",
             version="1.0", 
-            description="仅基于网络搜索的问答提示词",
+            description="仅基于网络搜索的问答提示词，支持Markdown格式",
             template="""你是一个信息研究助手，基于最新的网络搜索结果回答用户问题。
 
 ## 网络搜索结果：
@@ -130,7 +142,12 @@ class PromptManager:
 - 综合多个来源的信息
 - 标注信息的来源链接
 - 注意信息的时效性和可靠性
-- 使用纯文本格式，不要使用markdown语法
+- **使用Markdown格式**优化回答展示：
+  - 使用 **粗体** 强调重要信息
+  - 使用 *斜体* 标注来源网站
+  - 使用列表组织多个信息点
+  - 使用 [链接文本](URL) 格式提供来源链接
+  - 使用 ### 组织答案结构
 
 ## 用户问题：
 {query}
@@ -197,6 +214,70 @@ class PromptManager:
 ...""",
             variables=["knowledge_info", "web_info"],
             category="fusion"
+        )
+
+        # 语言检测提示词
+        self.built_in_prompts["language_detection"] = PromptTemplate(
+            name="language_detection",
+            version="1.0",
+            description="检测文本语言类型",
+            template="""请检测以下文本的语言类型：
+
+文本内容：{text}
+
+请返回语言代码：
+- zh: 中文
+- en: 英文
+- ja: 日文
+- ko: 韩文
+- other: 其他语言
+
+仅返回语言代码，不要其他内容。""",
+            variables=["text"],
+            category="analysis"
+        )
+        
+        # 智能语言适配RAG提示词（支持Markdown）
+        self.built_in_prompts["rag_qa_adaptive"] = PromptTemplate(
+            name="rag_qa_adaptive",
+            version="1.0",
+            description="根据用户问题语言自动适配回答语言的RAG提示词，支持Markdown格式", 
+            template="""You are a professional AI assistant. Please analyze the user's question language and respond in the same language.
+
+If the user asks in English, respond in English.
+If the user asks in Chinese, respond in Chinese.
+If the user asks in other languages, try to respond in that language or English.
+
+## Context Information
+
+### Knowledge Base Results:
+{knowledge_context}
+
+### Web Search Results:
+{web_context}
+
+## Response Guidelines
+
+1. **Language Matching**: Respond in the same language as the user's question
+2. **Accuracy First**: Base your answer on the provided context
+3. **Source Citation**: Clearly indicate information sources using markdown format
+4. **Markdown Format**: Use proper markdown syntax for better readability:
+   - Use **bold** for emphasis
+   - Use *italics* for terminology
+   - Use numbered lists (1. 2. 3.) or bullet points (- ) for structure
+   - Use `code` for technical terms
+   - Use > for important quotes
+   - Use ### for subheadings if needed
+5. **Natural Style**: Use natural and appropriate style for the detected language
+6. **Structure**: Organize information clearly with headers, lists, and paragraphs
+
+## User Question:
+{query}
+
+## Response:
+[Please respond in the same language as the user's question above, using markdown format for better presentation]""",
+            variables=["knowledge_context", "web_context", "query"],
+            category="rag"
         )
     
     def _load_custom_prompts(self):
@@ -297,6 +378,55 @@ class PromptManager:
         except Exception as e:
             print(f"❌ 保存提示词失败: {e}")
             return False
+    
+    def detect_language(self, text: str) -> str:
+        """简单的语言检测函数"""
+        # 去除空白字符
+        text = text.strip()
+        if not text:
+            return "unknown"
+        
+        # 统计不同字符类型
+        chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', text))
+        english_chars = len(re.findall(r'[a-zA-Z]', text))
+        japanese_chars = len(re.findall(r'[\u3040-\u309f\u30a0-\u30ff]', text))
+        korean_chars = len(re.findall(r'[\uac00-\ud7af]', text))
+        
+        total_chars = len(re.findall(r'[\w\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]', text))
+        
+        if total_chars == 0:
+            return "unknown"
+        
+        # 计算各语言字符占比
+        chinese_ratio = chinese_chars / total_chars
+        english_ratio = english_chars / total_chars  
+        japanese_ratio = japanese_chars / total_chars
+        korean_ratio = korean_chars / total_chars
+        
+        # 判断主要语言
+        if chinese_ratio > 0.3:
+            return "zh"
+        elif english_ratio > 0.7:
+            return "en"
+        elif japanese_ratio > 0.2:
+            return "ja" 
+        elif korean_ratio > 0.2:
+            return "ko"
+        elif english_ratio > 0.4:
+            return "en"
+        else:
+            return "zh"  # 默认中文
+    
+    def select_adaptive_prompt(self, query: str, base_template: str = "rag_qa") -> str:
+        """根据查询语言选择合适的提示词模板"""
+        detected_lang = self.detect_language(query)
+        
+        # 如果是英文查询，使用语言自适应模板
+        if detected_lang == "en":
+            return "rag_qa_adaptive"
+        # 其他语言或中文，使用自适应模板以确保语言匹配
+        else:
+            return "rag_qa_adaptive"
     
     def export_prompts(self, output_file: str = None) -> str:
         """导出所有提示词"""

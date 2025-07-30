@@ -55,6 +55,15 @@ async def add_process_time_header(request: Request, call_next):
     response.headers["X-Process-Time"] = str(process_time)
     return response
 
+# UTF-8编码中间件
+@app.middleware("http")
+async def add_utf8_encoding(request: Request, call_next):
+    response = await call_next(request)
+    # 确保JSON响应包含UTF-8编码信息
+    if response.headers.get("content-type") == "application/json":
+        response.headers["content-type"] = "application/json; charset=utf-8"
+    return response
+
 # LangChain模型初始化中间件
 @app.middleware("http")
 async def initialize_models(request: Request, call_next):
@@ -150,23 +159,38 @@ async def root():
 async def get_models_info():
     """获取当前加载的模型信息"""
     try:
-        chat_config = model_config._config["chat_models"][model_config._config["default_models"]["chat"]]
-        embedding_config = model_config._config["embedding_models"][model_config._config["default_models"]["embedding"]]
+        config = model_config._config
         
-        return {
+        # 安全地获取配置信息
+        chat_model_name = config.get("default_models", {}).get("chat", "default")
+        embedding_model_name = config.get("default_models", {}).get("embedding", "default")
+        
+        chat_config = config.get("chat_models", {}).get(chat_model_name, {})
+        embedding_config = config.get("embedding_models", {}).get(embedding_model_name, {})
+        
+        # 构建响应，处理可能的缺失字段
+        response = {
             "chat_model": {
-                "name": chat_config["name"],
-                "provider": chat_config["provider"],
-                "max_context_length": chat_config["max_context_length"]
+                "name": chat_config.get("name", "Unknown"),
+                "provider": chat_config.get("provider", "Unknown"),
+                "max_context_length": chat_config.get("max_context_length", 0)
             },
             "embedding_model": {
-                "name": embedding_config["name"],
-                "provider": embedding_config["provider"],
-                "dimensions": embedding_config["parameters"]["dimensions"]
+                "name": embedding_config.get("name", "Unknown"),
+                "provider": embedding_config.get("provider", "Unknown"),
             },
-            "vector_store": model_config._config["vector_stores"]["primary"]["name"],
+            "vector_store": config.get("vector_stores", {}).get("primary", {}).get("name", "Unknown"),
             "langsmith_enabled": settings.langsmith_tracing
         }
+        
+        # 安全处理dimensions字段
+        embedding_params = embedding_config.get("parameters", {})
+        if isinstance(embedding_params, dict) and "dimensions" in embedding_params:
+            response["embedding_model"]["dimensions"] = embedding_params["dimensions"]
+        else:
+            response["embedding_model"]["dimensions"] = "unknown"
+        
+        return response
     except Exception as e:
         return JSONResponse(
             status_code=500,

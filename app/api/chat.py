@@ -10,7 +10,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 import json
 
-from src.rag.workflow import rag_workflow
+from src.rag.workflow import rag_workflow, RAGState
 from src.prompts.prompt_manager import get_prompt_manager
 from src.knowledge_base.knowledge_base_manager import get_knowledge_base_manager
 from config.settings import get_settings
@@ -78,8 +78,26 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
             get_settings().current_collection_name = request.collection_name
         
         # 设置工作流参数
-        workflow_state = await rag_workflow.run(request.query)
+        workflow_result = await rag_workflow.run(request.query)
         
+        # 处理LangGraph返回的结果格式
+        if isinstance(workflow_result, dict):
+            # LangGraph的ainvoke可能返回dict格式
+            workflow_state = RAGState(**workflow_result)
+        else:
+            # 直接是RAGState对象
+            workflow_state = workflow_result
+        
+        # 确保所有必要属性存在
+        if not hasattr(workflow_state, 'documents') or workflow_state.documents is None:
+            workflow_state.documents = []
+        if not hasattr(workflow_state, 'web_results') or workflow_state.web_results is None:
+            workflow_state.web_results = []
+        if not hasattr(workflow_state, 'metadata') or workflow_state.metadata is None:
+            workflow_state.metadata = {}
+        if not hasattr(workflow_state, 'response') or workflow_state.response is None:
+            workflow_state.response = "抱歉，无法生成回答。"
+            
         # 手动设置检索策略（如果指定）
         if request.search_strategy != "both":
             workflow_state.metadata["retrieval_strategy"] = request.search_strategy
@@ -92,20 +110,31 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
         
         # 整理知识库来源
         for doc in workflow_state.documents:
-            sources["knowledge_base"].append({
-                "content": doc.page_content[:200] + "..." if len(doc.page_content) > 200 else doc.page_content,
-                "metadata": doc.metadata,
-                "relevance_score": getattr(doc, 'score', 0.0)
-            })
+            try:
+                content = doc.page_content if hasattr(doc, 'page_content') else str(doc)
+                metadata = doc.metadata if hasattr(doc, 'metadata') else {}
+                sources["knowledge_base"].append({
+                    "content": content[:200] + "..." if len(content) > 200 else content,
+                    "metadata": metadata,
+                    "relevance_score": getattr(doc, 'score', 0.0)
+                })
+            except Exception as e:
+                print(f"处理知识库文档时出错: {e}")
+                continue
         
         # 整理网络搜索来源
         for result in workflow_state.web_results:
-            sources["web_search"].append({
-                "title": result.get("title", ""),
-                "content": result.get("content", "")[:200] + "..." if len(result.get("content", "")) > 200 else result.get("content", ""),
-                "url": result.get("url", ""),
-                "score": result.get("score", 0.0)
-            })
+            try:
+                content = result.get("content", "") if isinstance(result, dict) else str(result)
+                sources["web_search"].append({
+                    "title": result.get("title", "") if isinstance(result, dict) else "",
+                    "content": content[:200] + "..." if len(content) > 200 else content,
+                    "url": result.get("url", "") if isinstance(result, dict) else "",
+                    "score": result.get("score", 0.0) if isinstance(result, dict) else 0.0
+                })
+            except Exception as e:
+                print(f"处理网络搜索结果时出错: {e}")
+                continue
         
         # 计算处理时间
         processing_time = (datetime.now() - start_time).total_seconds()
@@ -148,23 +177,116 @@ async def chat_stream(request: ChatRequest):
     """
     async def generate_stream():
         try:
+            # 检测查询语言并选择相应的进度消息
+            from src.prompts.prompt_manager import get_prompt_manager
+            prompt_manager = get_prompt_manager()
+            detected_lang = prompt_manager.detect_language(request.query)
+            
+            # 根据语言选择消息
+            if detected_lang == "en":
+                messages = {
+                    "start": "Starting query processing...",
+                    "analysis": "Analyzing query...",
+                    "retrieval": "Retrieving information...",
+                    "fusion": "Fusing information...",
+                    "context": "Building context...",
+                    "generation": "Generating response...",
+                    "error_prefix": "Error occurred during processing: ",
+                    "default_response": "Sorry, unable to generate response."
+                }
+            else:
+                messages = {
+                    "start": "开始处理查询...",
+                    "analysis": "分析查询中...",
+                    "retrieval": "检索信息中...",
+                    "fusion": "融合信息中...",
+                    "context": "构建上下文中...",
+                    "generation": "生成回答中...",
+                    "error_prefix": "处理过程中发生错误: ",
+                    "default_response": "抱歉，无法生成回答。"
+                }
+            
             # 发送开始信号
-            yield f"data: {json.dumps({'type': 'start', 'message': '开始处理查询...'}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'start', 'message': messages['start']}, ensure_ascii=False)}\n\n"
             
-            # 执行工作流
-            workflow_state = await rag_workflow.run(request.query)
+            # 定义流式回调函数
+            async def stream_callback(stage: str, data: str = None):
+                if stage in messages:
+                    yield f"data: {json.dumps({'type': 'progress', 'stage': stage, 'message': messages[stage]}, ensure_ascii=False)}\n\n"
+                elif data:
+                    # 如果是生成的文本数据，逐步输出
+                    yield f"data: {json.dumps({'type': 'chunk', 'content': data}, ensure_ascii=False)}\n\n"
             
-            # 发送进度更新
-            yield f"data: {json.dumps({'type': 'progress', 'message': '检索完成，生成回答中...'}, ensure_ascii=False)}\n\n"
+            # 使用队列来实现真正的流式输出
+            import asyncio
+            from collections import deque
             
-            # 发送最终结果
+            stream_queue = deque()
+            workflow_complete = False
+            workflow_result = None
+            workflow_error = None
+            
+            def sync_callback(stage: str, data: str = None):
+                if stage in messages:
+                    stream_queue.append(f"data: {json.dumps({'type': 'progress', 'stage': stage, 'message': messages[stage]}, ensure_ascii=False)}\n\n")
+                elif data:
+                    stream_queue.append(f"data: {json.dumps({'type': 'chunk', 'content': data}, ensure_ascii=False)}\n\n")
+            
+            # 创建后台任务执行工作流
+            async def run_workflow():
+                nonlocal workflow_complete, workflow_result, workflow_error
+                try:
+                    workflow_result = await rag_workflow.run(request.query, stream_callback=sync_callback)
+                    workflow_complete = True
+                except Exception as e:
+                    workflow_error = e
+                    workflow_complete = True
+            
+            # 启动后台工作流任务
+            workflow_task = asyncio.create_task(run_workflow())
+            
+            # 实时输出流式数据
+            while not workflow_complete:
+                # 输出队列中的所有数据
+                while stream_queue:
+                    yield stream_queue.popleft()
+                
+                # 短暂等待避免CPU密集
+                await asyncio.sleep(0.1)
+            
+            # 确保工作流任务完成
+            await workflow_task
+            
+            # 输出剩余的队列数据
+            while stream_queue:
+                yield stream_queue.popleft()
+            
+            # 检查是否有错误
+            if workflow_error:
+                raise workflow_error
+            
+            # 处理LangGraph返回的结果格式
+            if isinstance(workflow_result, dict):
+                workflow_state = RAGState(**workflow_result)
+            else:
+                workflow_state = workflow_result
+            
+            # 确保所有必要属性存在
+            if not hasattr(workflow_state, 'documents') or workflow_state.documents is None:
+                workflow_state.documents = []
+            if not hasattr(workflow_state, 'web_results') or workflow_state.web_results is None:
+                workflow_state.web_results = []
+            if not hasattr(workflow_state, 'response') or workflow_state.response is None:
+                workflow_state.response = messages["default_response"]
+            
+            # 发送最终完成信号（仅包含元数据，不重复response内容）
             result = {
                 "type": "complete",
-                "query": request.query,
-                "response": workflow_state.response,
                 "metadata": {
+                    "query": request.query,
                     "knowledge_retrieved": len(workflow_state.documents),
-                    "web_retrieved": len(workflow_state.web_results)
+                    "web_retrieved": len(workflow_state.web_results),
+                    "total_chunks_sent": True
                 }
             }
             
@@ -172,19 +294,27 @@ async def chat_stream(request: ChatRequest):
             yield "data: [DONE]\n\n"
             
         except Exception as e:
+            # 使用检测到的语言显示错误消息
+            try:
+                from src.prompts.prompt_manager import get_prompt_manager
+                prompt_manager = get_prompt_manager()
+                detected_lang = prompt_manager.detect_language(request.query)
+                error_prefix = "Error occurred during processing: " if detected_lang == "en" else "处理过程中发生错误: "
+            except:
+                error_prefix = "处理过程中发生错误: "
+                
             error_msg = {
                 "type": "error",
-                "message": f"处理过程中发生错误: {str(e)}"
+                "message": f"{error_prefix}{str(e)}"
             }
             yield f"data: {json.dumps(error_msg, ensure_ascii=False)}\n\n"
     
     return StreamingResponse(
         generate_stream(),
-        media_type="text/plain",
+        media_type="text/event-stream; charset=utf-8",
         headers={
             "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "Content-Type": "text/event-stream"
+            "Connection": "keep-alive"
         }
     )
 

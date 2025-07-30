@@ -3,6 +3,7 @@
 """
 
 import time
+import asyncio
 from typing import Dict, Any, List, Optional
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
@@ -278,31 +279,37 @@ class RAGWorkflow:
     async def generate_response(self, state: RAGState, stream_callback=None) -> RAGState:
         """智能回答生成 - 基于实际检索结果选择提示词"""
         try:
-            from src.prompts.prompt_manager import render_prompt
+            from src.prompts.prompt_manager import render_prompt, get_prompt_manager
+            
+            # 获取提示词管理器并检测语言
+            prompt_manager = get_prompt_manager()
             
             # 根据实际检索模式选择提示词策略
-            retrieval_mode = state.metadata.get("retrieval_mode", "混合模式")
+            retrieval_mode = state.metadata.get("retrieval_mode", "混合模式") 
             knowledge_context = state.metadata.get("knowledge_context", "")
             web_context = state.metadata.get("web_context", "")
             
-            # 智能提示词选择
+            # 智能提示词选择（语言自适应）
             if retrieval_mode == "知识库模式" and knowledge_context:
+                # 知识库模式暂时保持原有逻辑
                 prompt = render_prompt("knowledge_only", 
                                      knowledge_context=knowledge_context,
                                      query=state.query)
                 prompt_type = "knowledge_only"
             elif retrieval_mode == "网络模式" and web_context:
+                # 网络模式暂时保持原有逻辑  
                 prompt = render_prompt("web_only",
                                      web_context=web_context, 
                                      query=state.query)
                 prompt_type = "web_only"
             elif retrieval_mode == "混合模式":
-                # 使用综合RAG提示词
-                prompt = render_prompt("rag_qa",
-                                     knowledge_context=knowledge_context or "暂无相关知识库信息",
-                                     web_context=web_context or "暂无相关网络搜索信息",
+                # 使用语言自适应的RAG提示词
+                adaptive_template = prompt_manager.select_adaptive_prompt(state.query)
+                prompt = render_prompt(adaptive_template,
+                                     knowledge_context=knowledge_context or "No relevant knowledge base information available",
+                                     web_context=web_context or "No relevant web search information available", 
                                      query=state.query)
-                prompt_type = "rag_qa"
+                prompt_type = adaptive_template
             else:
                 # 无检索结果的回答
                 prompt = f"""作为AI助手，我需要基于现有知识回答用户问题。
@@ -323,7 +330,11 @@ class RAGWorkflow:
                 async for chunk in self.chat_model.astream(messages):
                     if hasattr(chunk, 'content') and chunk.content:
                         full_response += chunk.content
-                        await stream_callback(chunk.content)
+                        if stream_callback:
+                            if asyncio.iscoroutinefunction(stream_callback):
+                                await stream_callback(chunk.content)
+                            else:
+                                stream_callback("chunk", chunk.content)
                 
                 state.response = full_response
             else:
@@ -360,10 +371,24 @@ class RAGWorkflow:
         # 由于LangGraph不直接支持流式回调，我们需要手动执行步骤
         if stream_callback:
             # 手动执行工作流步骤以支持流式输出
+            if callable(stream_callback):
+                stream_callback("analysis")
             state = await self.analyze_query(initial_state)
+            
+            if callable(stream_callback):
+                stream_callback("retrieval")
             state = await self.parallel_retrieval(state)
+            
+            if callable(stream_callback):
+                stream_callback("fusion")
             state = await self.fuse_information(state)
+            
+            if callable(stream_callback):
+                stream_callback("context")
             state = await self.build_context(state)
+            
+            if callable(stream_callback):
+                stream_callback("generation")
             state = await self.generate_response(state, stream_callback)
             return state
         else:
