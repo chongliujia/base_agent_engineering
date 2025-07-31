@@ -75,59 +75,61 @@ python main.py
 
 ```bash
 # 健康检查
-curl http://localhost:8888/api/v1/health
+curl http://localhost:8010/health
 
-# 访问API文档
-open http://localhost:8888/docs
+# 获取模型信息
+curl http://localhost:8010/api/v1/models
 
-# 访问Milvus管理界面
-open http://localhost:8889
+# 测试聊天功能
+curl -X POST "http://localhost:8010/api/v1/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "你好，介绍一下自己", "search_strategy": "web_only"}'
 ```
 
 ## 📖 使用指南
 
 ### API接口
 
-#### 聊天对话 (兼容OpenAI格式)
+> 📖 **详细的API文档**: [Chat_API_使用文档.md](./Chat_API_使用文档.md) | [Chat_API_URL使用示例.md](./Chat_API_URL使用示例.md)
+
+#### 基础聊天接口
+
+**URL**: `POST http://localhost:8010/api/v1/chat`
 
 ```bash
-curl -X POST "http://localhost:8888/api/v1/chat/completions" \
+# 基础问答
+curl -X POST "http://localhost:8010/api/v1/chat" \
   -H "Content-Type: application/json" \
   -d '{
-    "messages": [
-      {"role": "user", "content": "什么是机器学习？"}
-    ],
-    "model": "rag-agent",
-    "use_knowledge_base": true,
-    "use_web_search": true,
-    "search_strategy": "hybrid"
+    "query": "什么是人工智能？",
+    "search_strategy": "both",
+    "max_web_results": 5,
+    "max_kb_results": 5
   }'
 ```
 
-#### 流式聊天
+#### 流式聊天接口
+
+**URL**: `POST http://localhost:8010/api/v1/chat/stream`
 
 ```bash
-curl -X POST "http://localhost:8888/api/v1/chat/stream" \
+curl -X POST "http://localhost:8010/api/v1/chat/stream" \
   -H "Content-Type: application/json" \
   -d '{
-    "messages": [
-      {"role": "user", "content": "解释深度学习的原理"}
-    ],
+    "query": "解释深度学习的原理",
     "stream": true
-  }'
+  }' \
+  --no-buffer -N
 ```
 
-#### 混合搜索
+#### 知识库管理
 
 ```bash
-curl -X POST "http://localhost:8888/api/v1/search/hybrid" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "机器学习算法分类",
-    "top_k": 10,
-    "knowledge_base_weight": 0.7,
-    "web_search_weight": 0.3
-  }'
+# 获取知识库列表
+curl -X GET "http://localhost:8010/api/v1/knowledge-bases"
+
+# 切换知识库
+curl -X POST "http://localhost:8010/api/v1/switch-kb/ai_research"
 ```
 
 ### 命令行工具
@@ -181,7 +183,7 @@ python -m cli eval report --output evaluation_report.html
 ```bash
 # API服务配置
 API_HOST=0.0.0.0
-API_PORT=8888                       # RAG API服务端口
+API_PORT=8010                       # Chat API服务端口
 API_WORKERS=4
 
 # 数据库配置
@@ -189,17 +191,12 @@ MILVUS_HOST=localhost
 MILVUS_PORT=19530
 REDIS_URL=redis://localhost:6379
 
-# 管理界面
-ATTU_PORT=8889                      # Milvus管理界面端口
-
 # API密钥
-OPENAI_API_KEY=your_openai_api_key
-TAVILY_API_KEY=your_tavily_api_key
+TAVILY_API_KEY=your_tavily_api_key  # 网络搜索API密钥
 
 # 模型配置
-DEFAULT_CHAT_MODEL=gpt-4
-DEFAULT_EMBEDDING_MODEL=text-embedding-3-large
-DEFAULT_RERANKING_MODEL=cross-encoder
+DEFAULT_CHAT_MODEL=qwen-plus        # 千问Plus模型
+DEFAULT_EMBEDDING_MODEL=text-embedding-v4
 
 # 日志配置
 LOG_LEVEL=INFO
@@ -209,8 +206,7 @@ LOG_LEVEL=INFO
 
 ```bash
 # 服务端口分配
-8888    # RAG API主服务
-8889    # Milvus管理界面 (Attu)
+8010    # Chat API主服务
 19530   # Milvus向量数据库 (内部)
 6379    # Redis缓存 (内部)
 ```
@@ -262,20 +258,26 @@ retrieval_strategies:
 
 ```bash
 # 查看系统状态
-python -m cli system status
+curl http://localhost:8010/health
 
-# 性能指标
-curl http://localhost:8888/api/v1/metrics
+# 获取详细健康检查
+curl http://localhost:8010/api/v1/health
+
+# 查看模型信息
+curl http://localhost:8010/api/v1/models
 ```
 
-### Milvus管理界面
+### 系统监控
 
-访问 `http://localhost:8889` 使用Attu管理界面：
-
-- 📈 **性能监控**: 查询QPS、延迟统计
-- 🗂️ **集合管理**: 创建、删除、查看集合
-- 🔍 **数据查询**: 向量搜索测试
-- 📊 **索引管理**: 索引类型和参数优化
+**当前服务状态**:
+- **服务端口**: 8010
+- **聊天模型**: qwen-plus (千问Plus)
+- **嵌入模型**: text-embedding-v4  
+- **向量数据库**: Milvus
+- **可用知识库**: 5个 (ai_research, knowledge_base, metadata, strategy_test, strategy_test_auto)
+- **网络搜索**: ✅ 已启用 (Tavily)
+- **语言自适应**: ✅ 已启用（自动检测用户语言并匹配回答语言）
+- **Markdown支持**: ✅ 已启用（支持格式化输出）
 
 ## 🧪 测试和评估
 
@@ -311,7 +313,7 @@ pytest --cov=config --cov=src --cov=app --cov-report=html
 python main.py
 
 # 或使用uvicorn
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8888
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8010
 ```
 
 ### 生产环境
@@ -341,19 +343,12 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
     }
 
-    # RAG API服务
-    location /api/rag/ {
-        proxy_pass http://localhost:8888/api/v1/;
+    # Chat API服务
+    location /api/chat/ {
+        proxy_pass http://localhost:8010/api/v1/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-
-    # Milvus管理界面（可选）
-    location /admin/milvus/ {
-        proxy_pass http://localhost:8889/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
     }
 }
 ```
