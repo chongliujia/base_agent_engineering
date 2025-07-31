@@ -1,5 +1,24 @@
 # Base Agent Engineering
 
+<div align="center">
+
+[![English](https://img.shields.io/badge/Language-English-blue)](./README_EN.md)
+[![中文](https://img.shields.io/badge/语言-中文-red)](./README.md)
+
+</div>
+
+---
+
+## English | [中文](./README.md)
+
+🚀 **Intelligent RAG System** - High-performance Retrieval-Augmented Generation (RAG) service based on FastAPI, integrating knowledge base retrieval and web search for a hybrid intelligent assistant.
+
+[📖 **Read in English →**](./README_EN.md)
+
+---
+
+## [English](./README_EN.md) | 中文
+
 🚀 **智能RAG系统** - 基于FastAPI的高性能检索增强生成(RAG)服务，集成知识库检索和联网搜索的混合智能助手。
 
 ## ✨ 核心特性
