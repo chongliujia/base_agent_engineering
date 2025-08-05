@@ -1,5 +1,5 @@
 """
-AI咨询助手API - 支持联网搜索和知识库检索的智能问答
+AI Consultation Assistant API - Intelligent Q&A supporting web search and knowledge base retrieval
 """
 
 import asyncio
@@ -19,18 +19,18 @@ router = APIRouter()
 
 
 class ChatRequest(BaseModel):
-    """聊天请求模型"""
-    query: str = Field(..., min_length=1, max_length=1000, description="用户问题")
-    collection_name: Optional[str] = Field(None, description="指定知识库集合名称")
-    search_strategy: Optional[str] = Field("both", description="检索策略: knowledge_only, web_only, both")
-    prompt_template: Optional[str] = Field(None, description="自定义提示词模板名称")
-    stream: bool = Field(False, description="是否流式响应")
-    max_web_results: int = Field(5, ge=1, le=10, description="最大网络搜索结果数")
-    max_kb_results: int = Field(5, ge=1, le=10, description="最大知识库检索结果数")
+    """Chat request model"""
+    query: str = Field(..., min_length=1, max_length=1000, description="User question")
+    collection_name: Optional[str] = Field(None, description="Specify knowledge base collection name")
+    search_strategy: Optional[str] = Field("both", description="Retrieval strategy: knowledge_only, web_only, both")
+    prompt_template: Optional[str] = Field(None, description="Custom prompt template name")
+    stream: bool = Field(False, description="Whether to use streaming response")
+    max_web_results: int = Field(5, ge=1, le=10, description="Maximum web search results")
+    max_kb_results: int = Field(5, ge=1, le=10, description="Maximum knowledge base retrieval results")
 
 
 class ChatResponse(BaseModel):
-    """聊天响应模型"""
+    """Chat response model"""
     query: str
     response: str
     sources: Dict[str, List[Dict[str, Any]]]
@@ -40,7 +40,7 @@ class ChatResponse(BaseModel):
 
 
 class KnowledgeBaseInfo(BaseModel):
-    """知识库信息模型"""
+    """Knowledge base information model"""
     name: str
     description: str
     document_count: int
@@ -51,18 +51,18 @@ class KnowledgeBaseInfo(BaseModel):
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
     """
-    与AI咨询助手对话
+    Chat with AI consultation assistant
     
-    支持功能：
-    - 知识库检索
-    - 联网搜索
-    - 智能策略选择
-    - 自定义提示词
+    Supported features:
+    - Knowledge base retrieval
+    - Web search
+    - Intelligent strategy selection
+    - Custom prompts
     """
     start_time = datetime.now()
     
     try:
-        # 切换知识库（如果指定）
+        # Switch knowledge base (if specified)
         if request.collection_name:
             kb_manager = get_knowledge_base_manager()
             available_kbs = kb_manager.list_knowledge_bases()
@@ -70,25 +70,25 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
             if request.collection_name not in available_kbs:
                 raise HTTPException(
                     status_code=404,
-                    detail=f"知识库 '{request.collection_name}' 不存在"
+                    detail=f"Knowledge base '{request.collection_name}' does not exist"
                 )
             
-            # 临时切换知识库
+            # Temporarily switch knowledge base
             original_collection = get_settings().current_collection_name
             get_settings().current_collection_name = request.collection_name
         
-        # 设置工作流参数
+        # Set workflow parameters
         workflow_result = await rag_workflow.run(request.query)
         
-        # 处理LangGraph返回的结果格式
+        # Handle LangGraph return result format
         if isinstance(workflow_result, dict):
-            # LangGraph的ainvoke可能返回dict格式
+            # LangGraph's ainvoke may return dict format
             workflow_state = RAGState(**workflow_result)
         else:
-            # 直接是RAGState对象
+            # Direct RAGState object
             workflow_state = workflow_result
         
-        # 确保所有必要属性存在
+        # Ensure all necessary attributes exist
         if not hasattr(workflow_state, 'documents') or workflow_state.documents is None:
             workflow_state.documents = []
         if not hasattr(workflow_state, 'web_results') or workflow_state.web_results is None:
@@ -96,9 +96,9 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
         if not hasattr(workflow_state, 'metadata') or workflow_state.metadata is None:
             workflow_state.metadata = {}
         if not hasattr(workflow_state, 'response') or workflow_state.response is None:
-            workflow_state.response = "抱歉，无法生成回答。"
+            workflow_state.response = "Sorry, unable to generate response."
             
-        # 手动设置检索策略（如果指定）
+        # Manually set retrieval strategy (if specified)
         if request.search_strategy != "both":
             workflow_state.metadata["retrieval_strategy"] = request.search_strategy
         
@@ -108,7 +108,7 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
             "web_search": []
         }
         
-        # 整理知识库来源
+        # Organize knowledge base sources
         for doc in workflow_state.documents:
             try:
                 content = doc.page_content if hasattr(doc, 'page_content') else str(doc)
@@ -119,10 +119,10 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
                     "relevance_score": getattr(doc, 'score', 0.0)
                 })
             except Exception as e:
-                print(f"处理知识库文档时出错: {e}")
+                print(f"Error processing knowledge base document: {e}")
                 continue
         
-        # 整理网络搜索来源
+        # Organize web search sources
         for result in workflow_state.web_results:
             try:
                 content = result.get("content", "") if isinstance(result, dict) else str(result)
@@ -133,13 +133,13 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
                     "score": result.get("score", 0.0) if isinstance(result, dict) else 0.0
                 })
             except Exception as e:
-                print(f"处理网络搜索结果时出错: {e}")
+                print(f"Error processing web search result: {e}")
                 continue
         
-        # 计算处理时间
+        # Calculate processing time
         processing_time = (datetime.now() - start_time).total_seconds()
         
-        # 构建元数据
+        # Build metadata
         metadata = {
             **workflow_state.metadata,
             "collection_used": request.collection_name or get_settings().current_collection_name,
@@ -149,7 +149,7 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
             "processing_time": processing_time
         }
         
-        # 恢复原始知识库设置
+        # Restore original knowledge base settings
         if request.collection_name:
             get_settings().current_collection_name = original_collection
         
@@ -163,26 +163,26 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
         )
         
     except Exception as e:
-        # 恢复原始知识库设置（错误情况）
+        # Restore original knowledge base settings (error case)
         if request.collection_name:
             get_settings().current_collection_name = original_collection
             
-        raise HTTPException(status_code=500, detail=f"处理请求时发生错误: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error occurred while processing request: {str(e)}")
 
 
 @router.post("/chat/stream")
 async def chat_stream(request: ChatRequest):
     """
-    流式对话接口
+    Streaming chat interface
     """
     async def generate_stream():
         try:
-            # 检测查询语言并选择相应的进度消息
+            # Detect query language and select corresponding progress messages
             from src.prompts.prompt_manager import get_prompt_manager
             prompt_manager = get_prompt_manager()
             detected_lang = prompt_manager.detect_language(request.query)
             
-            # 根据语言选择消息
+            # Select messages based on language
             if detected_lang == "en":
                 messages = {
                     "start": "Starting query processing...",
@@ -196,28 +196,28 @@ async def chat_stream(request: ChatRequest):
                 }
             else:
                 messages = {
-                    "start": "开始处理查询...",
-                    "analysis": "分析查询中...",
-                    "retrieval": "检索信息中...",
-                    "fusion": "融合信息中...",
-                    "context": "构建上下文中...",
-                    "generation": "生成回答中...",
-                    "error_prefix": "处理过程中发生错误: ",
-                    "default_response": "抱歉，无法生成回答。"
+                    "start": "Starting query processing...",
+                    "analysis": "Analyzing query...",
+                    "retrieval": "Retrieving information...",
+                    "fusion": "Fusing information...",
+                    "context": "Building context...",
+                    "generation": "Generating response...",
+                    "error_prefix": "Error occurred during processing: ",
+                    "default_response": "Sorry, unable to generate response."
                 }
             
-            # 发送开始信号
+            # Send start signal
             yield f"data: {json.dumps({'type': 'start', 'message': messages['start']}, ensure_ascii=False)}\n\n"
             
-            # 定义流式回调函数
+            # Define streaming callback function
             async def stream_callback(stage: str, data: str = None):
                 if stage in messages:
                     yield f"data: {json.dumps({'type': 'progress', 'stage': stage, 'message': messages[stage]}, ensure_ascii=False)}\n\n"
                 elif data:
-                    # 如果是生成的文本数据，逐步输出
+                    # If it's generated text data, output progressively
                     yield f"data: {json.dumps({'type': 'chunk', 'content': data}, ensure_ascii=False)}\n\n"
             
-            # 使用队列来实现真正的流式输出
+            # Use queue to implement true streaming output
             import asyncio
             from collections import deque
             
@@ -232,7 +232,7 @@ async def chat_stream(request: ChatRequest):
                 elif data:
                     stream_queue.append(f"data: {json.dumps({'type': 'chunk', 'content': data}, ensure_ascii=False)}\n\n")
             
-            # 创建后台任务执行工作流
+            # Create background task to execute workflow
             async def run_workflow():
                 nonlocal workflow_complete, workflow_result, workflow_error
                 try:
@@ -242,36 +242,36 @@ async def chat_stream(request: ChatRequest):
                     workflow_error = e
                     workflow_complete = True
             
-            # 启动后台工作流任务
+            # Start background workflow task
             workflow_task = asyncio.create_task(run_workflow())
             
-            # 实时输出流式数据
+            # Output streaming data in real-time
             while not workflow_complete:
-                # 输出队列中的所有数据
+                # Output all data in queue
                 while stream_queue:
                     yield stream_queue.popleft()
                 
-                # 短暂等待避免CPU密集
+                # Brief wait to avoid CPU intensive
                 await asyncio.sleep(0.1)
             
-            # 确保工作流任务完成
+            # Ensure workflow task completion
             await workflow_task
             
-            # 输出剩余的队列数据
+            # Output remaining queue data
             while stream_queue:
                 yield stream_queue.popleft()
             
-            # 检查是否有错误
+            # Check for errors
             if workflow_error:
                 raise workflow_error
             
-            # 处理LangGraph返回的结果格式
+            # Handle LangGraph return result format
             if isinstance(workflow_result, dict):
                 workflow_state = RAGState(**workflow_result)
             else:
                 workflow_state = workflow_result
             
-            # 确保所有必要属性存在
+            # Ensure all necessary attributes exist
             if not hasattr(workflow_state, 'documents') or workflow_state.documents is None:
                 workflow_state.documents = []
             if not hasattr(workflow_state, 'web_results') or workflow_state.web_results is None:
@@ -279,7 +279,7 @@ async def chat_stream(request: ChatRequest):
             if not hasattr(workflow_state, 'response') or workflow_state.response is None:
                 workflow_state.response = messages["default_response"]
             
-            # 发送最终完成信号（仅包含元数据，不重复response内容）
+            # Send final completion signal (only includes metadata, no duplicate response content)
             result = {
                 "type": "complete",
                 "metadata": {
@@ -294,14 +294,14 @@ async def chat_stream(request: ChatRequest):
             yield "data: [DONE]\n\n"
             
         except Exception as e:
-            # 使用检测到的语言显示错误消息
+            # Use detected language to display error message
             try:
                 from src.prompts.prompt_manager import get_prompt_manager
                 prompt_manager = get_prompt_manager()
                 detected_lang = prompt_manager.detect_language(request.query)
-                error_prefix = "Error occurred during processing: " if detected_lang == "en" else "处理过程中发生错误: "
+                error_prefix = "Error occurred during processing: " if detected_lang == "en" else "Error occurred during processing: "
             except:
-                error_prefix = "处理过程中发生错误: "
+                error_prefix = "Error occurred during processing: "
                 
             error_msg = {
                 "type": "error",
@@ -321,7 +321,7 @@ async def chat_stream(request: ChatRequest):
 
 @router.get("/knowledge-bases", response_model=List[KnowledgeBaseInfo])
 async def list_knowledge_bases():
-    """获取所有可用的知识库"""
+    """Get all available knowledge bases"""
     try:
         kb_manager = get_knowledge_base_manager()
         knowledge_bases = kb_manager.list_knowledge_bases()
@@ -332,16 +332,16 @@ async def list_knowledge_bases():
                 stats = kb_manager.get_knowledge_base_stats(kb_name)
                 result.append(KnowledgeBaseInfo(
                     name=kb_name,
-                    description=f"知识库 {kb_name}",
+                    description=f"Knowledge Base {kb_name}",
                     document_count=stats.get("total_documents", 0),
                     collection_name=kb_name,
                     last_updated=stats.get("last_updated", "")
                 ))
             except Exception as e:
-                # 如果获取统计信息失败，仍然返回基本信息
+                # If getting statistics fails, still return basic information
                 result.append(KnowledgeBaseInfo(
                     name=kb_name,
-                    description=f"知识库 {kb_name}",
+                    description=f"Knowledge Base {kb_name}",
                     document_count=0,
                     collection_name=kb_name,
                     last_updated=""
@@ -350,12 +350,12 @@ async def list_knowledge_bases():
         return result
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取知识库列表失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get knowledge base list: {str(e)}")
 
 
 @router.post("/switch-kb/{collection_name}")
 async def switch_knowledge_base(collection_name: str):
-    """切换当前知识库"""
+    """Switch current knowledge base"""
     try:
         kb_manager = get_knowledge_base_manager()
         available_kbs = kb_manager.list_knowledge_bases()
@@ -363,14 +363,14 @@ async def switch_knowledge_base(collection_name: str):
         if collection_name not in available_kbs:
             raise HTTPException(
                 status_code=404,
-                detail=f"知识库 '{collection_name}' 不存在"
+                detail=f"Knowledge base '{collection_name}' does not exist"
             )
         
-        # 切换知识库
+        # Switch knowledge base
         get_settings().current_collection_name = collection_name
         
         return {
-            "message": f"已切换到知识库: {collection_name}",
+            "message": f"Switched to knowledge base: {collection_name}",
             "current_kb": collection_name,
             "timestamp": datetime.now().isoformat()
         }
@@ -378,12 +378,12 @@ async def switch_knowledge_base(collection_name: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"切换知识库失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to switch knowledge base: {str(e)}")
 
 
 @router.get("/prompts")
-async def list_prompts(category: Optional[str] = Query(None, description="提示词类别")):
-    """获取可用的提示词模板"""
+async def list_prompts(category: Optional[str] = Query(None, description="Prompt category")):
+    """Get available prompt templates"""
     try:
         prompt_manager = get_prompt_manager()
         prompts = prompt_manager.list_prompts(category=category)
@@ -394,7 +394,7 @@ async def list_prompts(category: Optional[str] = Query(None, description="提示
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取提示词列表失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get prompt list: {str(e)}")
 
 
 @router.post("/prompts/{prompt_name}")
@@ -402,13 +402,13 @@ async def add_custom_prompt(
     prompt_name: str,
     prompt_data: Dict[str, Any] = Body(...)
 ):
-    """添加自定义提示词"""
+    """Add custom prompt"""
     try:
         from src.prompts.prompt_manager import PromptTemplate
         
         prompt_manager = get_prompt_manager()
         
-        # 创建提示词模板
+        # Create prompt template
         template = PromptTemplate(
             name=prompt_name,
             version=prompt_data.get("version", "1.0"),
@@ -422,22 +422,22 @@ async def add_custom_prompt(
         
         if success:
             return {
-                "message": f"提示词 '{prompt_name}' 添加成功",
+                "message": f"Prompt '{prompt_name}' added successfully",
                 "prompt_name": prompt_name,
                 "timestamp": datetime.now().isoformat()
             }
         else:
-            raise HTTPException(status_code=500, detail="保存提示词失败")
+            raise HTTPException(status_code=500, detail="Failed to save prompt")
             
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"添加提示词失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to add prompt: {str(e)}")
 
 
 @router.get("/health")
 async def health_check():
-    """健康检查"""
+    """Health check"""
     try:
-        # 检查核心组件状态
+        # Check core component status
         settings = get_settings()
         
         status = {

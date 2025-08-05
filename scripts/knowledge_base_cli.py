@@ -1,234 +1,231 @@
 #!/usr/bin/env python3
 """
-知识库命令行工具
+Knowledge Base Command Line Tool
+
+This script provides a command-line interface for managing knowledge bases,
+including adding files/directories, searching, viewing statistics, listing knowledge bases,
+and listing chunking strategies.
+
+Features:
+- Add single files or entire directories to knowledge base
+- Search knowledge base content
+- View knowledge base statistics
+- List all available knowledge bases
+- List all available chunking strategies
+- Support for asynchronous operations
+- Support for chunking strategy selection
 """
 
 import asyncio
 import argparse
 import sys
+import os
 from pathlib import Path
 
-# 添加项目根目录到Python路径
-sys.path.append(str(Path(__file__).parent.parent))
+# Add project root to path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 from src.knowledge_base.knowledge_base_manager import KnowledgeBaseManager
 from src.utils.async_utils import safe_async_run, is_async_context
 
 
-async def add_file_command(file_path: str, collection_name: str = None, chunking_strategy: str = None, strategy_params: dict = None):
-    """添加文件命令（支持分块策略选择）"""
-    print(f"🚀 开始添加文件: {file_path}")
+async def add_file_command(file_path: str, collection_name: str = None, 
+                          chunking_strategy: str = None, strategy_params: dict = None):
+    """Add file command"""
+    print(f"📄 Adding file: {file_path}")
     if collection_name:
-        print(f"   目标知识库: {collection_name}")
+        print(f"   Target knowledge base: {collection_name}")
     if chunking_strategy:
-        print(f"   分块策略: {chunking_strategy}")
+        print(f"   Chunking strategy: {chunking_strategy}")
     
-    kb_manager = KnowledgeBaseManager(
-        collection_name=collection_name,
-        chunking_strategy=chunking_strategy or "recursive",
-        strategy_params=strategy_params or {}
-    )
-    result = await kb_manager.add_file(
-        file_path,
-        chunking_strategy=chunking_strategy,
-        strategy_params=strategy_params
-    )
-    
-    if result.get("success", False):
-        print(f"✅ 文件添加成功!")
-        print(f"   文件路径: {result['file_path']}")
-        print(f"   总分块数: {result['total_chunks']}")
-        print(f"   有效分块: {result['valid_chunks']}")
-        print(f"   成功添加: {result.get('added_count', 'N/A')}")
-    else:
-        print(f"❌ 文件添加失败: {result.get('message', result.get('error', 'Unknown error'))}")
+    try:
+        result = await KnowledgeBaseManager.add_file_to_knowledge_base(
+            file_path, 
+            collection_name=collection_name,
+            chunking_strategy=chunking_strategy,
+            strategy_params=strategy_params or {}
+        )
+        
+        if result.get("success", False):
+            print(f"✅ File added successfully!")
+            print(f"   File: {result['file_path']}")
+            print(f"   Chunks: {result['chunks_count']}")
+            print(f"   Knowledge base: {result['collection_name']}")
+        else:
+            print(f"❌ Failed to add file: {result.get('message', result.get('error', 'Unknown error'))}")
+    except Exception as e:
+        print(f"❌ Error adding file: {str(e)}")
 
 
-async def add_directory_command(directory_path: str, recursive: bool = True, collection_name: str = None, 
-                               auto_strategy: bool = True, chunking_strategy: str = None, strategy_params: dict = None):
-    """添加目录命令（支持自动策略选择和分块策略选择）"""
-    print(f"🚀 开始添加目录: {directory_path}")
+async def add_directory_command(directory_path: str, recursive: bool = True, 
+                               collection_name: str = None, auto_strategy: bool = True,
+                               chunking_strategy: str = None, strategy_params: dict = None):
+    """Add directory command"""
+    print(f"📁 Adding directory: {directory_path}")
+    print(f"   Recursive: {'Yes' if recursive else 'No'}")
+    print(f"   Auto strategy: {'Yes' if auto_strategy else 'No'}")
     if collection_name:
-        print(f"   目标知识库: {collection_name}")
+        print(f"   Target knowledge base: {collection_name}")
     if chunking_strategy:
-        print(f"   分块策略: {chunking_strategy}")
-    elif auto_strategy:
-        print(f"   策略模式: 自动选择（根据文件类型）")
+        print(f"   Chunking strategy: {chunking_strategy}")
     
-    kb_manager = KnowledgeBaseManager(
-        collection_name=collection_name,
-        chunking_strategy=chunking_strategy or "recursive",
-        strategy_params=strategy_params or {}
-    )
-    result = await kb_manager.add_directory(
-        directory_path, 
-        recursive=recursive,
-        auto_strategy=auto_strategy,
-        chunking_strategy=chunking_strategy,
-        strategy_params=strategy_params
-    )
-    
-    if result.get("success", False):
-        print(f"✅ 目录添加成功!")
-        print(f"   目录路径: {result['directory_path']}")
+    try:
+        result = await KnowledgeBaseManager.add_directory_to_knowledge_base(
+            directory_path, 
+            recursive=recursive,
+            collection_name=collection_name,
+            auto_strategy=auto_strategy,
+            chunking_strategy=chunking_strategy,
+            strategy_params=strategy_params or {}
+        )
         
-        doc_summary = result.get("document_summary", {})
-        print(f"   处理文件: {doc_summary.get('total_files', 0)} 个")
-        print(f"   总分块数: {doc_summary.get('total_chunks', 0)} 个")
-        print(f"   文件大小: {doc_summary.get('total_size_mb', 0)} MB")
-        print(f"   成功添加: {result.get('added_count', 'N/A')}")
-    else:
-        print(f"❌ 目录添加失败: {result.get('message', result.get('error', 'Unknown error'))}")
+        if result.get("success", False):
+            print(f"✅ Directory added successfully!")
+            print(f"   Directory: {result['directory_path']}")
+            print(f"   Files processed: {result['files_count']}")
+            print(f"   Total chunks: {result['total_chunks']}")
+            print(f"   Knowledge base: {result['collection_name']}")
+            
+            # Display processing details
+            if result.get('processing_details'):
+                print(f"\n📊 Processing details:")
+                for detail in result['processing_details']:
+                    status = "✅" if detail['success'] else "❌"
+                    print(f"   {status} {detail['file_path']} - {detail['chunks_count']} chunks")
+                    if not detail['success']:
+                        print(f"      Error: {detail.get('error', 'Unknown error')}")
+        else:
+            print(f"❌ Failed to add directory: {result.get('message', result.get('error', 'Unknown error'))}")
+    except Exception as e:
+        print(f"❌ Error adding directory: {str(e)}")
 
 
-async def search_command(query: str, k: int = 5, include_scores: bool = False, collection_name: str = None):
-    """搜索命令"""
-    print(f"🔍 搜索: {query}")
+async def search_command(query: str, top_k: int = 5, show_scores: bool = False, 
+                        collection_name: str = None):
+    """Search command"""
+    print(f"🔍 Searching: {query}")
     if collection_name:
-        print(f"   搜索知识库: {collection_name}")
-    kb_manager = KnowledgeBaseManager(collection_name=collection_name)
-    result = await kb_manager.search(query, k, include_scores)
+        print(f"   Knowledge base: {collection_name}")
+    print(f"   Return count: {top_k}")
     
-    if result.get("success", False):
-        print(f"✅ 找到 {len(result['results'])} 个相关结果:")
+    try:
+        results = await KnowledgeBaseManager.search_knowledge_base(
+            query, 
+            top_k=top_k, 
+            collection_name=collection_name
+        )
         
-        for i, item in enumerate(result["results"], 1):
-            print(f"\n📄 结果 {i}:")
-            if include_scores:
-                print(f"   相似度: {item['score']:.4f}")
-            print(f"   来源: {item['metadata'].get('source', 'unknown')}")
-            print(f"   内容: {item['content'][:200]}...")
-    else:
-        print(f"❌ 搜索失败: {result.get('message', result.get('error', 'Unknown error'))}")
+        if results:
+            print(f"\n📋 Found {len(results)} results:")
+            for i, result in enumerate(results, 1):
+                print(f"\n{i}. 📄 {result.metadata.get('source', 'Unknown source')}")
+                if show_scores:
+                    print(f"   Similarity: {result.metadata.get('score', 'N/A')}")
+                print(f"   Content: {result.page_content[:200]}...")
+                if len(result.page_content) > 200:
+                    print(f"   (Total length: {len(result.page_content)} characters)")
+        else:
+            print("❌ No results found")
+    except Exception as e:
+        print(f"❌ Search error: {str(e)}")
 
 
 async def stats_command(collection_name: str = None):
-    """统计信息命令"""
+    """Statistics command"""
+    print("📊 Knowledge base statistics:")
     if collection_name:
-        print(f"📊 知识库统计信息 ({collection_name}):")
-    else:
-        print("📊 知识库统计信息:")
+        print(f"   Knowledge base: {collection_name}")
     
-    kb_manager = KnowledgeBaseManager(collection_name=collection_name)
-    stats = kb_manager.get_knowledge_base_stats()
-    
-    if "error" not in stats:
-        vector_stats = stats.get("vector_store_stats", {})
-        processing_stats = stats.get("processing_stats", {})
-        
-        print(f"   向量存储:")
-        print(f"     集合名称: {vector_stats.get('collection_name', 'N/A')}")
-        print(f"     文档数量: {vector_stats.get('total_entities', 'N/A')}")
-        if "description" in vector_stats:
-            print(f"     描述: {vector_stats.get('description', 'N/A')}")
-        if "status" in vector_stats:
-            print(f"     状态: {vector_stats.get('status', 'N/A')}")
-        
-        print(f"   处理统计:")
-        print(f"     总操作数: {processing_stats.get('total_operations', 0)}")
-        print(f"     成功操作: {processing_stats.get('successful_operations', 0)}")
-        print(f"     成功率: {processing_stats.get('success_rate', 0):.1f}%")
-        print(f"     最后更新: {processing_stats.get('last_updated', 'None')}")
-        
-        # 显示知识库路径信息
-        print(f"   存储路径:")
-        print(f"     知识库目录: {stats.get('knowledge_base_path', 'N/A')}")
-        print(f"     元数据目录: {stats.get('metadata_path', 'N/A')}")
-    else:
-        print(f"❌ 获取统计信息失败: {stats.get('message', 'Unknown error')}")
-        
-    # 尝试进行一次搜索测试来验证系统状态
-    print(f"\n🔍 系统状态测试:")
     try:
-        test_results = await kb_manager.search("测试", k=1, include_scores=False)
-        if test_results.get("success", False):
-            results_count = len(test_results.get("results", []))
-            print(f"     搜索功能: ✅ 正常 (找到 {results_count} 个结果)")
+        stats = await KnowledgeBaseManager.get_knowledge_base_stats(collection_name)
+        
+        if stats:
+            print(f"   Total documents: {stats.get('total_documents', 0)}")
+            print(f"   Total chunks: {stats.get('total_chunks', 0)}")
+            print(f"   Knowledge base name: {stats.get('collection_name', 'Unknown')}")
+            
+            # Display file type statistics
+            if stats.get('file_types'):
+                print(f"\n📁 File type distribution:")
+                for file_type, count in stats['file_types'].items():
+                    print(f"   {file_type}: {count} files")
         else:
-            print(f"     搜索功能: ❌ 异常 - {test_results.get('message', 'Unknown error')}")
+            print("❌ Unable to get statistics")
     except Exception as e:
-        print(f"     搜索功能: ❌ 测试失败 - {str(e)}")
+        print(f"❌ Statistics error: {str(e)}")
 
 
 async def list_kb_command():
-    """列出所有知识库命令"""
-    print("📚 知识库列表:")
-    collections = KnowledgeBaseManager.list_knowledge_bases()
+    """List knowledge bases command"""
+    print("📚 Available knowledge bases:")
     
-    if not collections:
-        print("   (无知识库)")
-    else:
-        for i, collection in enumerate(collections, 1):
-            print(f"   {i}. {collection}")
-    
-    print(f"\n总计: {len(collections)} 个知识库")
+    try:
+        knowledge_bases = await KnowledgeBaseManager.list_knowledge_bases()
+        
+        if knowledge_bases:
+            for kb in knowledge_bases:
+                status = "✅ Active" if kb.get('is_current', False) else "⚪ Available"
+                print(f"   {status} {kb['name']}")
+                if kb.get('path'):
+                    print(f"      Path: {kb['path']}")
+                if kb.get('description'):
+                    print(f"      Description: {kb['description']}")
+        else:
+            print("   No knowledge bases found")
+    except Exception as e:
+        print(f"❌ List error: {str(e)}")
 
 
 async def list_strategies_command():
-    """列出所有可用分块策略命令"""
-    from src.knowledge_base.document_processor import DocumentProcessor
+    """List chunking strategies command"""
+    from src.knowledge_base.chunking_strategies import ChunkingStrategyFactory
     
-    print("🧠 可用分块策略:")
-    strategies = DocumentProcessor.list_available_strategies()
+    print("🔧 Available chunking strategies:")
     
-    if not strategies:
-        print("   (无可用策略)")
-        return
+    strategies = ChunkingStrategyFactory.list_strategies()
     
-    for i, (name, info) in enumerate(strategies.items(), 1):
-        print(f"\n{i}. {name}")
-        if info.get("available", True):
-            print(f"   描述: {info.get('description', 'N/A')}")
-            
-            # 显示参数
-            params = info.get("parameters", {})
-            if params:
-                print(f"   参数: {params}")
-            
-            # 显示适用场景
-            suitable_for = info.get("suitable_for", [])
-            if suitable_for:
-                print(f"   适用: {', '.join(suitable_for)}")
-            
-            # 显示优势
-            advantages = info.get("advantages", [])
-            if advantages:
-                print(f"   优势: {', '.join(advantages)}")
-            
-            # 显示要求
-            requirements = info.get("requirements", [])
-            if requirements:
-                print(f"   要求: {', '.join(requirements)}")
+    for strategy_name, info in strategies.items():
+        print(f"\n📋 {strategy_name}")
+        print(f"   Description: {info.get('description', 'No description')}")
+        
+        if info.get('available', True):
+            print(f"   Status: Available")
+            if info.get('parameters'):
+                print(f"   Parameters: {', '.join(info['parameters'])}")
+            if info.get('requirements'):
+                requirements = [req for req in info['requirements'] if req]
+                print(f"   Requirements: {', '.join(requirements)}")
         else:
-            print(f"   状态: 不可用 - {info.get('description', 'Unknown error')}")
+            print(f"   Status: Unavailable - {info.get('description', 'Unknown error')}")
     
-    print(f"\n总计: {len(strategies)} 个策略")
+    print(f"\nTotal: {len(strategies)} strategies")
 
 
 async def recommend_strategy_command(file_type: str = None, use_case: str = None):
-    """获取策略推荐命令"""
+    """Get strategy recommendation command"""
     from src.knowledge_base.document_processor import DocumentProcessor
     
-    print("🎯 策略推荐:")
+    print("🎯 Strategy recommendations:")
     
     if file_type:
         strategy = DocumentProcessor.get_strategy_recommendation(file_type=file_type)
-        print(f"   文件类型 '{file_type}' 的推荐策略: {strategy}")
+        print(f"   Recommended strategy for file type '{file_type}': {strategy}")
     
     if use_case:
         strategy = DocumentProcessor.get_strategy_recommendation(use_case=use_case)
-        print(f"   使用场景 '{use_case}' 的推荐策略: {strategy}")
+        print(f"   Recommended strategy for use case '{use_case}': {strategy}")
     
     if not file_type and not use_case:
-        print("   请指定文件类型或使用场景")
-        print("   示例: --file-type pdf 或 --use-case knowledge_base")
+        print("   Please specify file type or use case")
+        print("   Example: --file-type pdf or --use-case knowledge_base")
 
 
 async def create_kb_command(collection_name: str, chunking_strategy: str = None, strategy_params: dict = None):
-    """创建知识库命令（支持指定默认分块策略）"""
-    print(f"🚀 创建知识库: {collection_name}")
+    """Create knowledge base command (supports specifying default chunking strategy)"""
+    print(f"🚀 Creating knowledge base: {collection_name}")
     if chunking_strategy:
-        print(f"   默认分块策略: {chunking_strategy}")
+        print(f"   Default chunking strategy: {chunking_strategy}")
     
     result = await KnowledgeBaseManager.create_knowledge_base(
         collection_name,
@@ -237,115 +234,115 @@ async def create_kb_command(collection_name: str, chunking_strategy: str = None,
     )
     
     if result.get("success", False):
-        print(f"✅ 知识库创建成功!")
-        print(f"   知识库名称: {result['collection_name']}")
-        print(f"   存储路径: {result['path']}")
+        print(f"✅ Knowledge base created successfully!")
+        print(f"   Knowledge base name: {result['collection_name']}")
+        print(f"   Storage path: {result['path']}")
     else:
-        print(f"❌ 知识库创建失败: {result.get('message', result.get('error', 'Unknown error'))}")
+        print(f"❌ Failed to create knowledge base: {result.get('message', result.get('error', 'Unknown error'))}")
 
 
 async def delete_kb_command(collection_name: str, confirm: bool = False):
-    """删除知识库命令"""
+    """Delete knowledge base command"""
     if not confirm:
-        print(f"⚠️  确认要删除知识库 '{collection_name}' 吗？")
-        print("   此操作将永久删除所有数据！")
-        print("   如确认删除，请使用: --confirm 参数")
+        print(f"⚠️  Are you sure you want to delete knowledge base '{collection_name}'?")
+        print("   This operation will permanently delete all data!")
+        print("   To confirm deletion, use: --confirm parameter")
         return
     
-    print(f"🗑️  删除知识库: {collection_name}")
+    print(f"🗑️  Deleting knowledge base: {collection_name}")
     result = await KnowledgeBaseManager.delete_knowledge_base(collection_name, confirm=True)
     
     if result.get("success", False):
-        print(f"✅ 知识库删除成功!")
-        print(f"   已删除: {collection_name}")
+        print(f"✅ Knowledge base deleted successfully!")
+        print(f"   Deleted: {collection_name}")
     else:
-        print(f"❌ 知识库删除失败: {result.get('message', result.get('error', 'Unknown error'))}")
+        print(f"❌ Failed to delete knowledge base: {result.get('message', result.get('error', 'Unknown error'))}")
 
 
 def switch_kb_command(collection_name: str):
-    """切换知识库命令"""
-    print(f"🔄 切换知识库: {collection_name}")
+    """Switch knowledge base command"""
+    print(f"🔄 Switching knowledge base: {collection_name}")
     result = KnowledgeBaseManager.switch_knowledge_base(collection_name)
     
     if result.get("success", False):
-        print(f"✅ 切换成功!")
-        print(f"   当前知识库: {result['collection_name']}")
+        print(f"✅ Switch successful!")
+        print(f"   Current knowledge base: {result['collection_name']}")
         if result.get("note"):
-            print(f"   注意: {result['note']}")
+            print(f"   Note: {result['note']}")
     else:
-        print(f"❌ 切换失败: {result.get('message', result.get('error', 'Unknown error'))}")
+        print(f"❌ Switch failed: {result.get('message', result.get('error', 'Unknown error'))}")
 
 
 async def async_main():
-    """异步主函数"""
-    parser = argparse.ArgumentParser(description="知识库管理工具")
-    subparsers = parser.add_subparsers(dest="command", help="可用命令")
+    """Async main function"""
+    parser = argparse.ArgumentParser(description="Knowledge Base Management Tool")
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
-    # 添加全局参数
-    parser.add_argument("--collection", "-c", help="指定知识库名称", dest="collection")
+    # Add global parameters
+    parser.add_argument("--collection", "-c", help="Specify knowledge base name", dest="collection")
     
-    # 添加文件命令
-    add_file_parser = subparsers.add_parser("add-file", help="添加单个文件")
-    add_file_parser.add_argument("file_path", help="文件路径")
-    add_file_parser.add_argument("--strategy", "-s", help="分块策略 (recursive, token, semantic, character, code, format)")
-    add_file_parser.add_argument("--chunk-size", type=int, help="分块大小")
-    add_file_parser.add_argument("--chunk-overlap", type=int, help="分块重叠")
-    add_file_parser.add_argument("--format-type", help="文件格式类型 (用于format策略)")
-    add_file_parser.add_argument("--language", help="编程语言 (用于code策略)")
+    # Add file command
+    add_file_parser = subparsers.add_parser("add-file", help="Add a single file")
+    add_file_parser.add_argument("file_path", help="File path")
+    add_file_parser.add_argument("--strategy", "-s", help="Chunking strategy (recursive, token, semantic, character, code, format)")
+    add_file_parser.add_argument("--chunk-size", type=int, help="Chunk size")
+    add_file_parser.add_argument("--chunk-overlap", type=int, help="Chunk overlap")
+    add_file_parser.add_argument("--format-type", help="File format type (for format strategy)")
+    add_file_parser.add_argument("--language", help="Programming language (for code strategy)")
     
-    # 添加目录命令
-    add_dir_parser = subparsers.add_parser("add-dir", help="添加目录")
-    add_dir_parser.add_argument("directory_path", help="目录路径")
+    # Add directory command
+    add_dir_parser = subparsers.add_parser("add-dir", help="Add directory")
+    add_dir_parser.add_argument("directory_path", help="Directory path")
     add_dir_parser.add_argument("--no-recursive", action="store_true", 
-                               help="不递归处理子目录")
+                               help="Do not recursively process subdirectories")
     add_dir_parser.add_argument("--no-auto-strategy", action="store_true",
-                               help="不自动选择策略，使用统一策略")
-    add_dir_parser.add_argument("--strategy", "-s", help="分块策略 (recursive, token, semantic, character, code, format)")
-    add_dir_parser.add_argument("--chunk-size", type=int, help="分块大小")
-    add_dir_parser.add_argument("--chunk-overlap", type=int, help="分块重叠")
-    add_dir_parser.add_argument("--format-type", help="文件格式类型 (用于format策略)")
-    add_dir_parser.add_argument("--language", help="编程语言 (用于code策略)")
+                               help="Do not auto-select strategy, use unified strategy")
+    add_dir_parser.add_argument("--strategy", "-s", help="Chunking strategy (recursive, token, semantic, character, code, format)")
+    add_dir_parser.add_argument("--chunk-size", type=int, help="Chunk size")
+    add_dir_parser.add_argument("--chunk-overlap", type=int, help="Chunk overlap")
+    add_dir_parser.add_argument("--format-type", help="File format type (for format strategy)")
+    add_dir_parser.add_argument("--language", help="Programming language (for code strategy)")
     
-    # 搜索命令
-    search_parser = subparsers.add_parser("search", help="搜索知识库")
-    search_parser.add_argument("query", help="搜索查询")
+    # Search command
+    search_parser = subparsers.add_parser("search", help="Search knowledge base")
+    search_parser.add_argument("query", help="Search query")
     search_parser.add_argument("-k", "--top-k", type=int, default=5, 
-                              help="返回结果数量")
+                              help="Number of results to return")
     search_parser.add_argument("--scores", action="store_true", 
-                              help="显示相似度分数")
+                              help="Show similarity scores")
     
-    # 统计命令
-    subparsers.add_parser("stats", help="显示知识库统计信息")
+    # Statistics command
+    subparsers.add_parser("stats", help="Show knowledge base statistics")
     
-    # 知识库管理命令
-    subparsers.add_parser("list-kb", help="列出所有知识库")
+    # Knowledge base management commands
+    subparsers.add_parser("list-kb", help="List all knowledge bases")
     
-    create_parser = subparsers.add_parser("create-kb", help="创建新知识库")
-    create_parser.add_argument("name", help="知识库名称")
-    create_parser.add_argument("--strategy", "-s", help="默认分块策略")
-    create_parser.add_argument("--chunk-size", type=int, help="默认分块大小")
-    create_parser.add_argument("--chunk-overlap", type=int, help="默认分块重叠")
+    create_parser = subparsers.add_parser("create-kb", help="Create new knowledge base")
+    create_parser.add_argument("name", help="Knowledge base name")
+    create_parser.add_argument("--strategy", "-s", help="Default chunking strategy")
+    create_parser.add_argument("--chunk-size", type=int, help="Default chunk size")
+    create_parser.add_argument("--chunk-overlap", type=int, help="Default chunk overlap")
     
-    # 策略管理命令
-    subparsers.add_parser("list-strategies", help="列出所有可用分块策略")
+    # Strategy management commands
+    subparsers.add_parser("list-strategies", help="List all available chunking strategies")
     
-    recommend_parser = subparsers.add_parser("recommend-strategy", help="获取策略推荐")
-    recommend_parser.add_argument("--file-type", help="文件类型 (pdf, docx, txt, md, py, js, etc.)")
-    recommend_parser.add_argument("--use-case", help="使用场景 (general, llm_input, knowledge_base, code_analysis, fast_processing)")
+    recommend_parser = subparsers.add_parser("recommend-strategy", help="Get strategy recommendations")
+    recommend_parser.add_argument("--file-type", help="File type (pdf, docx, txt, md, py, js, etc.)")
+    recommend_parser.add_argument("--use-case", help="Use case (general, llm_input, knowledge_base, code_analysis, fast_processing)")
     
-    delete_parser = subparsers.add_parser("delete-kb", help="删除知识库")
-    delete_parser.add_argument("name", help="知识库名称")
-    delete_parser.add_argument("--confirm", action="store_true", help="确认删除")
+    delete_parser = subparsers.add_parser("delete-kb", help="Delete knowledge base")
+    delete_parser.add_argument("name", help="Knowledge base name")
+    delete_parser.add_argument("--confirm", action="store_true", help="Confirm deletion")
     
-    switch_parser = subparsers.add_parser("switch-kb", help="切换当前知识库")
-    switch_parser.add_argument("name", help="知识库名称")
+    switch_parser = subparsers.add_parser("switch-kb", help="Switch current knowledge base")
+    switch_parser.add_argument("name", help="Knowledge base name")
     
     args = parser.parse_args()
     
-    # 获取集合名称（优先使用命令行参数）
+    # Get collection name (prioritize command line arguments)
     collection_name = getattr(args, 'collection', None)
     
-    # 构建策略参数
+    # Build strategy parameters
     def build_strategy_params(args):
         params = {}
         if hasattr(args, 'chunk_size') and args.chunk_size:
@@ -389,9 +386,9 @@ async def async_main():
 
 
 def main():
-    """主函数 - 安全运行异步代码"""
+    """Main function - safely run async code"""
     if is_async_context():
-        print("⚠️ 检测到异步上下文，请直接使用 await async_main()")
+        print("⚠️ Async context detected, please use await async_main() directly")
         return async_main()
     else:
         return safe_async_run(async_main())
@@ -400,5 +397,5 @@ def main():
 if __name__ == "__main__":
     result = main()
     if asyncio.iscoroutine(result):
-        print("请在异步环境中运行此脚本")
+        print("Please run this script in an async environment")
         sys.exit(1)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-测试各种服务连接
+Test various service connections
 """
 import os
 import sys
@@ -8,7 +8,7 @@ import redis
 from pymilvus import connections, utility
 from urllib.parse import urlparse
 
-# 添加项目根目录到 Python 路径
+# Add project root directory to Python path
 from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
@@ -16,11 +16,11 @@ sys.path.insert(0, str(project_root))
 from config.settings import get_settings
 
 def test_redis_connection():
-    """测试 Redis 连接"""
+    """Test Redis connection"""
     try:
         settings = get_settings()
         
-        # 解析 Redis URL
+        # Parse Redis URL
         if settings.redis_url:
             parsed = urlparse(settings.redis_url)
             host = parsed.hostname or 'localhost'
@@ -36,14 +36,14 @@ def test_redis_connection():
             decode_responses=True
         )
         r.ping()
-        print(f"✅ Redis 连接成功 ({host}:{port})")
+        print(f"✅ Redis connection successful ({host}:{port})")
         return True
     except Exception as e:
-        print(f"❌ Redis 连接失败: {e}")
+        print(f"❌ Redis connection failed: {e}")
         return False
 
 def test_milvus_connection():
-    """测试 Milvus 连接"""
+    """Test Milvus connection"""
     try:
         settings = get_settings()
         connections.connect(
@@ -54,24 +54,24 @@ def test_milvus_connection():
             password=settings.milvus_password if settings.milvus_password else None
         )
         
-        # 检查连接
+        # Check connection
         if connections.has_connection("default"):
-            print(f"✅ Milvus 连接成功 ({settings.milvus_host}:{settings.milvus_port})")
+            print(f"✅ Milvus connection successful ({settings.milvus_host}:{settings.milvus_port})")
             
-            # 列出集合
+            # List collections
             collections = utility.list_collections()
-            print(f"📋 现有集合: {collections}")
+            print(f"📋 Existing collections: {collections}")
             return True
         else:
-            print("❌ Milvus 连接失败")
+            print("❌ Milvus connection failed")
             return False
     except Exception as e:
-        print(f"❌ Milvus 连接失败: {e}")
+        print(f"❌ Milvus connection failed: {e}")
         return False
 
 def main():
-    """主函数"""
-    print("🔍 测试服务连接...")
+    """Main function"""
+    print("🔍 Testing service connections...")
     print("-" * 50)
     
     redis_ok = test_redis_connection()
@@ -79,10 +79,10 @@ def main():
     
     print("-" * 50)
     if redis_ok and milvus_ok:
-        print("🎉 所有服务连接正常！")
+        print("🎉 All service connections are working!")
         return 0
     else:
-        print("⚠️  部分服务连接失败，请检查 Docker 服务状态")
+        print("⚠️  Some service connections failed, please check Docker service status")
         return 1
 
 if __name__ == "__main__":

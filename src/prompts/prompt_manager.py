@@ -1,5 +1,5 @@
 """
-提示词管理系统 - 支持可配置和模板化的提示词
+Prompt Management System - Supporting configurable and templated prompts
 """
 
 import json
@@ -15,7 +15,7 @@ from config.settings import get_settings
 
 @dataclass
 class PromptTemplate:
-    """提示词模板"""
+    """Prompt template"""
     name: str
     version: str
     description: str
@@ -31,217 +31,217 @@ class PromptTemplate:
         self.updated_at = datetime.now().isoformat()
     
     def render(self, **kwargs) -> str:
-        """渲染提示词模板"""
+        """Render prompt template"""
         try:
             return self.template.format(**kwargs)
         except KeyError as e:
             missing_var = str(e).strip("'")
-            raise ValueError(f"模板变量缺失: {missing_var}. 需要的变量: {self.variables}")
+            raise ValueError(f"Template variable missing: {missing_var}. Required variables: {self.variables}")
 
 
 class PromptManager:
-    """提示词管理器"""
+    """Prompt manager"""
     
     def __init__(self, prompts_dir: str = None):
         self.settings = get_settings()
         self.prompts_dir = Path(prompts_dir or "config/prompts")
         self.prompts_dir.mkdir(parents=True, exist_ok=True)
         
-        # 内置提示词模板
+        # Built-in prompt templates
         self.built_in_prompts = {}
         self._load_built_in_prompts()
         
-        # 用户自定义提示词
+        # User custom prompts
         self.custom_prompts = {}
         self._load_custom_prompts()
     
     def _load_built_in_prompts(self):
-        """加载内置提示词模板"""
+        """Load built-in prompt templates"""
         
-        # RAG问答提示词（支持Markdown）
+        # RAG Q&A prompt (supports Markdown)
         self.built_in_prompts["rag_qa"] = PromptTemplate(
             name="rag_qa",
             version="1.0",
-            description="基于知识库和网络搜索的问答提示词，支持Markdown格式",
-            template="""你是一个专业的AI助手，能够基于知识库文档和网络搜索结果回答用户问题。
+            description="Q&A prompt based on knowledge base and web search, supports Markdown format",
+            template="""You are a professional AI assistant capable of answering user questions based on knowledge base documents and web search results.
 
-## 上下文信息
+## Context Information
 
-### 知识库检索结果：
+### Knowledge Base Retrieval Results:
 {knowledge_context}
 
-### 网络搜索结果：
+### Web Search Results:
 {web_context}
 
-## 回答要求
+## Response Requirements
 
-1. **准确性优先**：基于提供的上下文信息进行回答
-2. **信息融合**：综合知识库和网络搜索的信息
-3. **引用来源**：明确标注信息来源
-4. **结构化回答**：使用清晰的段落和要点
-5. **诚实回应**：如果信息不足，请诚实说明
-6. **Markdown格式**：请使用Markdown语法来优化回答格式：
-   - 使用 **粗体** 强调重要概念
-   - 使用 *斜体* 标注专业术语
-   - 使用有序列表 (1. 2. 3.) 或无序列表 (- ) 组织信息
-   - 使用 `代码格式` 标注技术术语
-   - 使用 > 引用重要信息
-   - 使用 ### 子标题组织内容结构
+1. **Accuracy First**: Answer based on the provided context information
+2. **Information Fusion**: Integrate information from knowledge base and web search
+3. **Source Citation**: Clearly indicate information sources
+4. **Structured Response**: Use clear paragraphs and bullet points
+5. **Honest Response**: If information is insufficient, please state honestly
+6. **Markdown Format**: Please use Markdown syntax to optimize answer format:
+   - Use **bold** to emphasize important concepts
+   - Use *italics* to mark professional terms
+   - Use ordered lists (1. 2. 3.) or unordered lists (-) to organize information
+   - Use `code format` to mark technical terms
+   - Use > to quote important information
+   - Use ### subheadings to organize content structure
 
-## 用户问题：
+## User Question:
 {query}
 
-## 回答：
-请基于上述上下文信息，使用Markdown格式为用户提供准确、全面且格式优美的回答。""",
+## Answer:
+Please provide an accurate, comprehensive and well-formatted answer based on the above context information using Markdown format.""",
             variables=["knowledge_context", "web_context", "query"],
             category="rag"
         )
         
-        # 纯知识库问答（支持Markdown）
+        # Knowledge-only Q&A (supports Markdown)
         self.built_in_prompts["knowledge_only"] = PromptTemplate(
             name="knowledge_only", 
             version="1.0",
-            description="仅基于知识库的问答提示词，支持Markdown格式",
-            template="""你是一个专业的文档助手，专门基于知识库中的文档内容回答用户问题。
+            description="Q&A prompt based only on knowledge base, supports Markdown format",
+            template="""You are a professional document assistant, specializing in answering user questions based on knowledge base document content.
 
-## 知识库上下文：
+## Knowledge Base Context:
 {knowledge_context}
 
-## 回答指南：
-- 严格基于提供的文档内容进行回答
-- 如果文档中没有相关信息，请明确说明
-- 引用具体的文档片段支持你的回答
-- 保持回答的准确性和专业性
-- **使用Markdown格式**优化回答展示：
-  - 使用 **粗体** 强调关键概念
-  - 使用 *斜体* 标注文档来源
-  - 使用列表组织信息要点
-  - 使用 > 引用文档原文
-  - 使用 ### 组织答案结构
+## Response Guidelines:
+- Answer strictly based on the provided document content
+- If there is no relevant information in the documents, please state clearly
+- Quote specific document fragments to support your answer
+- Maintain accuracy and professionalism in your response
+- **Use Markdown format** to optimize answer presentation:
+  - Use **bold** to emphasize key concepts
+  - Use *italics* to mark document sources
+  - Use lists to organize information points
+  - Use > to quote original document text
+  - Use ### to organize answer structure
 
-## 用户问题：
+## User Question:
 {query}
 
-## 基于文档的回答：""",
+## Document-based Answer:""",
             variables=["knowledge_context", "query"],
             category="knowledge"
         )
         
-        # 网络搜索问答（支持Markdown）
+        # Web search Q&A (supports Markdown)
         self.built_in_prompts["web_only"] = PromptTemplate(
             name="web_only",
             version="1.0", 
-            description="仅基于网络搜索的问答提示词，支持Markdown格式",
-            template="""你是一个信息研究助手，基于最新的网络搜索结果回答用户问题。
+            description="Q&A prompt based only on web search, supports Markdown format",
+            template="""You are an information research assistant, answering user questions based on the latest web search results.
 
-## 网络搜索结果：
+## Web Search Results:
 {web_context}
 
-## 回答要求：
-- 基于搜索结果提供最新、准确的信息
-- 综合多个来源的信息
-- 标注信息的来源链接
-- 注意信息的时效性和可靠性
-- **使用Markdown格式**优化回答展示：
-  - 使用 **粗体** 强调重要信息
-  - 使用 *斜体* 标注来源网站
-  - 使用列表组织多个信息点
-  - 使用 [链接文本](URL) 格式提供来源链接
-  - 使用 ### 组织答案结构
+## Response Requirements:
+- Provide the latest and accurate information based on search results
+- Integrate information from multiple sources
+- Mark information source links
+- Pay attention to the timeliness and reliability of information
+- **Use Markdown format** to optimize answer presentation:
+  - Use **bold** to emphasize important information
+  - Use *italics* to mark source websites
+  - Use lists to organize multiple information points
+  - Use [link text](URL) format to provide source links
+  - Use ### to organize answer structure
 
-## 用户问题：
+## User Question:
 {query}
 
-## 基于搜索结果的回答：""",
+## Search-based Answer:""",
             variables=["web_context", "query"],
             category="web"
         )
         
-        # 查询分析提示词
+        # Query analysis prompt
         self.built_in_prompts["query_analysis"] = PromptTemplate(
             name="query_analysis",
             version="1.0",
-            description="用于分析用户查询意图和类型",
-            template="""请分析以下用户查询，确定其类型和检索策略。
+            description="For analyzing user query intent and type",
+            template="""Please analyze the following user query to determine its type and retrieval strategy.
 
-## 用户查询：
+## User Query:
 {query}
 
-## 分析维度：
-1. **查询类型**：事实性、分析性、操作性、概念性
-2. **时效性需求**：是否需要最新信息
-3. **复杂度**：简单、中等、复杂
-4. **领域**：技术、商业、生活、学术等
-5. **推荐策略**：knowledge_only、web_only、both
+## Analysis Dimensions:
+1. **Query Type**: Factual, Analytical, Operational, Conceptual
+2. **Timeliness Requirement**: Whether latest information is needed
+3. **Complexity**: Simple, Medium, Complex
+4. **Domain**: Technology, Business, Life, Academic, etc.
+5. **Recommended Strategy**: knowledge_only, web_only, both
 
-请以JSON格式返回分析结果：
+Please return analysis results in JSON format:
 {{
-    "query_type": "类型",
+    "query_type": "type",
     "needs_realtime": true/false,
-    "complexity": "简单/中等/复杂",
-    "domain": "领域",
-    "recommended_strategy": "策略",
-    "keywords": ["关键词1", "关键词2"],
-    "reasoning": "分析理由"
+    "complexity": "simple/medium/complex",
+    "domain": "domain",
+    "recommended_strategy": "strategy",
+    "keywords": ["keyword1", "keyword2"],
+    "reasoning": "analysis reasoning"
 }}""",
             variables=["query"],
             category="analysis"
         )
         
-        # 信息融合提示词
+        # Information fusion prompt
         self.built_in_prompts["information_fusion"] = PromptTemplate(
             name="information_fusion",
             version="1.0",
-            description="用于融合多源信息",
-            template="""请将以下来自不同来源的信息进行整合和去重。
+            description="For fusing multi-source information",
+            template="""Please integrate and deduplicate the following information from different sources.
 
-## 知识库信息：
+## Knowledge Base Information:
 {knowledge_info}
 
-## 网络搜索信息：
+## Web Search Information:
 {web_info}
 
-## 融合要求：
-1. 去除重复信息
-2. 解决信息冲突
-3. 按重要性排序
-4. 保留信息来源标识
+## Fusion Requirements:
+1. Remove duplicate information
+2. Resolve information conflicts
+3. Sort by importance
+4. Retain source identification
 
-## 融合后的信息：
-请提供整合后的信息，格式如下：
-- 核心信息点1 [来源：知识库/网络]
-- 核心信息点2 [来源：知识库/网络]
+## Fused Information:
+Please provide integrated information in the following format:
+- Core information point 1 [Source: Knowledge Base/Web]
+- Core information point 2 [Source: Knowledge Base/Web]
 ...""",
             variables=["knowledge_info", "web_info"],
             category="fusion"
         )
 
-        # 语言检测提示词
+        # Language detection prompt
         self.built_in_prompts["language_detection"] = PromptTemplate(
             name="language_detection",
             version="1.0",
-            description="检测文本语言类型",
-            template="""请检测以下文本的语言类型：
+            description="Detect text language type",
+            template="""Please detect the language type of the following text:
 
-文本内容：{text}
+Text content: {text}
 
-请返回语言代码：
-- zh: 中文
-- en: 英文
-- ja: 日文
-- ko: 韩文
-- other: 其他语言
+Please return language code:
+- zh: Chinese
+- en: English
+- ja: Japanese
+- ko: Korean
+- other: Other languages
 
-仅返回语言代码，不要其他内容。""",
+Return only the language code, no other content.""",
             variables=["text"],
             category="analysis"
         )
         
-        # 智能语言适配RAG提示词（支持Markdown）
+        # Smart language-adaptive RAG prompt (supports Markdown)
         self.built_in_prompts["rag_qa_adaptive"] = PromptTemplate(
             name="rag_qa_adaptive",
             version="1.0",
-            description="根据用户问题语言自动适配回答语言的RAG提示词，支持Markdown格式", 
+            description="RAG prompt that automatically adapts response language based on user question language, supports Markdown format", 
             template="""You are a professional AI assistant. Please analyze the user's question language and respond in the same language.
 
 If the user asks in English, respond in English.
@@ -281,7 +281,7 @@ If the user asks in other languages, try to respond in that language or English.
         )
     
     def _load_custom_prompts(self):
-        """加载用户自定义提示词"""
+        """Load user custom prompts"""
         prompts_file = self.prompts_dir / "custom_prompts.yaml"
         
         if prompts_file.exists():
@@ -293,13 +293,13 @@ If the user asks in other languages, try to respond in that language or English.
                     prompt = PromptTemplate(**prompt_data)
                     self.custom_prompts[prompt.name] = prompt
                     
-                print(f"✅ 加载了 {len(self.custom_prompts)} 个自定义提示词")
+                print(f"✅ Loaded {len(self.custom_prompts)} custom prompts")
                 
             except Exception as e:
-                print(f"⚠️ 加载自定义提示词失败: {e}")
+                print(f"⚠️ Failed to load custom prompts: {e}")
     
     def get_prompt(self, name: str, prefer_custom: bool = True) -> Optional[PromptTemplate]:
-        """获取提示词模板"""
+        """Get prompt template"""
         if prefer_custom and name in self.custom_prompts:
             return self.custom_prompts[name]
         
@@ -312,22 +312,22 @@ If the user asks in other languages, try to respond in that language or English.
         return None
     
     def render_prompt(self, name: str, **kwargs) -> str:
-        """渲染提示词"""
+        """Render prompt"""
         prompt = self.get_prompt(name)
         if not prompt:
-            raise ValueError(f"未找到提示词模板: {name}")
+            raise ValueError(f"Prompt template not found: {name}")
         
         return prompt.render(**kwargs)
     
     def list_prompts(self, category: str = None) -> Dict[str, List[PromptTemplate]]:
-        """列出所有提示词"""
+        """List all prompts"""
         all_prompts = {**self.built_in_prompts, **self.custom_prompts}
         
         if category:
             filtered = {k: v for k, v in all_prompts.items() if v.category == category}
             return {"prompts": list(filtered.values())}
         
-        # 按类别分组
+        # Group by category
         categories = {}
         for prompt in all_prompts.values():
             if prompt.category not in categories:
@@ -337,12 +337,12 @@ If the user asks in other languages, try to respond in that language or English.
         return categories
     
     def add_custom_prompt(self, prompt: PromptTemplate) -> bool:
-        """添加自定义提示词"""
+        """Add custom prompt"""
         self.custom_prompts[prompt.name] = prompt
         return self._save_custom_prompts()
     
     def update_custom_prompt(self, name: str, **updates) -> bool:
-        """更新自定义提示词"""
+        """Update custom prompt"""
         if name not in self.custom_prompts:
             return False
         
@@ -355,14 +355,14 @@ If the user asks in other languages, try to respond in that language or English.
         return self._save_custom_prompts()
     
     def delete_custom_prompt(self, name: str) -> bool:
-        """删除自定义提示词"""
+        """Delete custom prompt"""
         if name in self.custom_prompts:
             del self.custom_prompts[name]
             return self._save_custom_prompts()
         return False
     
     def _save_custom_prompts(self) -> bool:
-        """保存自定义提示词到文件"""
+        """Save custom prompts to file"""
         try:
             prompts_data = {
                 "prompts": [asdict(prompt) for prompt in self.custom_prompts.values()],
@@ -376,17 +376,17 @@ If the user asks in other languages, try to respond in that language or English.
             return True
             
         except Exception as e:
-            print(f"❌ 保存提示词失败: {e}")
+            print(f"❌ Failed to save prompts: {e}")
             return False
     
     def detect_language(self, text: str) -> str:
-        """简单的语言检测函数"""
-        # 去除空白字符
+        """Simple language detection function"""
+        # Remove whitespace
         text = text.strip()
         if not text:
             return "unknown"
         
-        # 统计不同字符类型
+        # Count different character types
         chinese_chars = len(re.findall(r'[\u4e00-\u9fff]', text))
         english_chars = len(re.findall(r'[a-zA-Z]', text))
         japanese_chars = len(re.findall(r'[\u3040-\u309f\u30a0-\u30ff]', text))
@@ -397,13 +397,13 @@ If the user asks in other languages, try to respond in that language or English.
         if total_chars == 0:
             return "unknown"
         
-        # 计算各语言字符占比
+        # Calculate character ratios for each language
         chinese_ratio = chinese_chars / total_chars
         english_ratio = english_chars / total_chars  
         japanese_ratio = japanese_chars / total_chars
         korean_ratio = korean_chars / total_chars
         
-        # 判断主要语言
+        # Determine primary language
         if chinese_ratio > 0.3:
             return "zh"
         elif english_ratio > 0.7:
@@ -415,21 +415,21 @@ If the user asks in other languages, try to respond in that language or English.
         elif english_ratio > 0.4:
             return "en"
         else:
-            return "zh"  # 默认中文
+            return "zh"  # Default to Chinese
     
     def select_adaptive_prompt(self, query: str, base_template: str = "rag_qa") -> str:
-        """根据查询语言选择合适的提示词模板"""
+        """Select appropriate prompt template based on query language"""
         detected_lang = self.detect_language(query)
         
-        # 如果是英文查询，使用语言自适应模板
+        # If English query, use language-adaptive template
         if detected_lang == "en":
             return "rag_qa_adaptive"
-        # 其他语言或中文，使用自适应模板以确保语言匹配
+        # For other languages or Chinese, use adaptive template to ensure language matching
         else:
             return "rag_qa_adaptive"
     
     def export_prompts(self, output_file: str = None) -> str:
-        """导出所有提示词"""
+        """Export all prompts"""
         all_prompts = {**self.built_in_prompts, **self.custom_prompts}
         
         export_data = {
@@ -452,15 +452,15 @@ If the user asks in other languages, try to respond in that language or English.
         return json.dumps(export_data, ensure_ascii=False, indent=2)
 
 
-# 全局提示词管理器实例
+# Global prompt manager instance
 prompt_manager = PromptManager()
 
 
 def get_prompt_manager() -> PromptManager:
-    """获取提示词管理器实例"""
+    """Get prompt manager instance"""
     return prompt_manager
 
 
 def render_prompt(name: str, **kwargs) -> str:
-    """快速渲染提示词的便捷函数"""
+    """Convenient function for quick prompt rendering"""
     return prompt_manager.render_prompt(name, **kwargs)

@@ -1,5 +1,5 @@
 """
-联网搜索模块 - 支持多种搜索引擎
+Web Search Module - Supporting Multiple Search Engines
 """
 
 import asyncio
@@ -12,7 +12,7 @@ from config.settings import get_settings
 
 
 class WebSearchResult:
-    """网络搜索结果"""
+    """Web search result"""
     
     def __init__(self, title: str, content: str, url: str, score: float = 0.0, 
                  source: str = "", published_date: str = ""):
@@ -37,7 +37,7 @@ class WebSearchResult:
 
 
 class TavilySearchEngine:
-    """Tavily搜索引擎实现"""
+    """Tavily search engine implementation"""
     
     def __init__(self, api_key: str):
         self.api_key = api_key
@@ -45,7 +45,7 @@ class TavilySearchEngine:
         self.session = None
     
     async def _get_session(self):
-        """获取或创建HTTP会话"""
+        """Get or create HTTP session"""
         if self.session is None:
             self.session = aiohttp.ClientSession()
         return self.session
@@ -54,10 +54,10 @@ class TavilySearchEngine:
                     search_depth: str = "basic", 
                     include_domains: List[str] = None,
                     exclude_domains: List[str] = None) -> List[WebSearchResult]:
-        """执行Tavily搜索"""
+        """Execute Tavily search"""
         
         if not self.api_key:
-            raise ValueError("Tavily API密钥未配置")
+            raise ValueError("Tavily API key not configured")
         
         session = await self._get_session()
         
@@ -84,20 +84,20 @@ class TavilySearchEngine:
             ) as response:
                 if response.status != 200:
                     error_text = await response.text()
-                    raise Exception(f"Tavily API错误 {response.status}: {error_text}")
+                    raise Exception(f"Tavily API error {response.status}: {error_text}")
                 
                 data = await response.json()
                 return self._parse_tavily_results(data)
                 
         except Exception as e:
-            print(f"❌ Tavily搜索失败: {e}")
+            print(f"❌ Tavily search failed: {e}")
             return []
     
     def _parse_tavily_results(self, data: Dict[str, Any]) -> List[WebSearchResult]:
-        """解析Tavily搜索结果"""
+        """Parse Tavily search results"""
         results = []
         
-        # 解析搜索结果
+        # Parse search results
         for item in data.get("results", []):
             result = WebSearchResult(
                 title=item.get("title", ""),
@@ -112,14 +112,14 @@ class TavilySearchEngine:
         return results
     
     async def close(self):
-        """关闭HTTP会话"""
+        """Close HTTP session"""
         if self.session:
             await self.session.close()
             self.session = None
 
 
 class DuckDuckGoSearchEngine:
-    """DuckDuckGo搜索引擎（备用）"""
+    """DuckDuckGo search engine (backup)"""
     
     def __init__(self):
         self.session = None
@@ -130,14 +130,14 @@ class DuckDuckGoSearchEngine:
         return self.session
     
     async def search(self, query: str, max_results: int = 5) -> List[WebSearchResult]:
-        """执行DuckDuckGo搜索（简化版）"""
-        # 这是一个简化的实现，实际应该使用duckduckgo-search库
-        # 这里作为备用方案提供基础结构
+        """Execute DuckDuckGo search (simplified version)"""
+        # This is a simplified implementation, should actually use duckduckgo-search library
+        # Provided here as a backup solution with basic structure
         
         results = [
             WebSearchResult(
-                title=f"DuckDuckGo搜索结果: {query}",
-                content=f"这是关于'{query}'的搜索结果内容",
+                title=f"DuckDuckGo search result: {query}",
+                content=f"This is search result content about '{query}'",
                 url="https://duckduckgo.com",
                 score=0.8,
                 source="duckduckgo"
@@ -153,14 +153,14 @@ class DuckDuckGoSearchEngine:
 
 
 class WebSearchManager:
-    """网络搜索管理器"""
+    """Web search manager"""
     
     def __init__(self):
         self.settings = get_settings()
         self.tavily_engine = None
         self.duckduckgo_engine = None
         
-        # 初始化搜索引擎
+        # Initialize search engines
         if self.settings.tavily_api_key:
             self.tavily_engine = TavilySearchEngine(self.settings.tavily_api_key)
         
@@ -169,11 +169,11 @@ class WebSearchManager:
     async def search(self, query: str, max_results: int = 5, 
                     preferred_engine: str = "tavily",
                     search_config: Dict[str, Any] = None) -> List[WebSearchResult]:
-        """执行网络搜索"""
+        """Execute web search"""
         
         search_config = search_config or {}
         
-        # 优先使用Tavily
+        # Prefer Tavily
         if preferred_engine == "tavily" and self.tavily_engine:
             try:
                 results = await self.tavily_engine.search(
@@ -185,28 +185,28 @@ class WebSearchManager:
                 )
                 
                 if results:
-                    print(f"✅ Tavily搜索成功: 找到 {len(results)} 个结果")
+                    print(f"✅ Tavily search successful: found {len(results)} results")
                     return results
                     
             except Exception as e:
-                print(f"⚠️ Tavily搜索失败，尝试备用方案: {e}")
+                print(f"⚠️ Tavily search failed, trying backup: {e}")
         
-        # 备用方案：DuckDuckGo
+        # Backup: DuckDuckGo
         if self.duckduckgo_engine:
             try:
                 results = await self.duckduckgo_engine.search(query, max_results)
-                print(f"✅ DuckDuckGo搜索成功: 找到 {len(results)} 个结果")
+                print(f"✅ DuckDuckGo search successful: found {len(results)} results")
                 return results
                 
             except Exception as e:
-                print(f"❌ DuckDuckGo搜索也失败: {e}")
+                print(f"❌ DuckDuckGo search also failed: {e}")
         
-        # 返回空结果
-        print("❌ 所有搜索引擎都不可用")
+        # Return empty results
+        print("❌ All search engines unavailable")
         return []
     
     def get_search_summary(self, results: List[WebSearchResult]) -> Dict[str, Any]:
-        """获取搜索结果摘要"""
+        """Get search results summary"""
         if not results:
             return {"total": 0, "sources": [], "average_score": 0.0}
         
@@ -223,24 +223,24 @@ class WebSearchManager:
         }
     
     async def close(self):
-        """关闭所有搜索引擎连接"""
+        """Close all search engine connections"""
         if self.tavily_engine:
             await self.tavily_engine.close()
         if self.duckduckgo_engine:
             await self.duckduckgo_engine.close()
 
 
-# 全局搜索管理器实例
+# Global search manager instance
 web_search_manager = WebSearchManager()
 
 
 async def search_web(query: str, max_results: int = 5, 
                     search_config: Dict[str, Any] = None) -> List[Dict[str, Any]]:
-    """简化的搜索接口"""
+    """Simplified search interface"""
     results = await web_search_manager.search(query, max_results, search_config=search_config)
     return [result.to_dict() for result in results]
 
 
 async def close_search_connections():
-    """关闭搜索连接（用于应用关闭时清理）"""
+    """Close search connections (for cleanup when application shuts down)"""
     await web_search_manager.close()

@@ -1,5 +1,5 @@
 """
-文档处理器 - 支持多种文档格式的加载、分割和预处理
+Document Processor - Supports loading, splitting and preprocessing of multiple document formats
 """
 
 import os
@@ -27,7 +27,7 @@ from config.settings import get_model_config, get_settings
 
 
 class DocumentProcessor:
-    """文档处理器 - 支持多种分块策略"""
+    """Document Processor - Supports multiple chunking strategies"""
     
     def __init__(self, chunking_strategy: str = "recursive", strategy_params: Dict[str, Any] = None):
         self.settings = get_settings()
@@ -38,7 +38,7 @@ class DocumentProcessor:
             '.md': UnstructuredMarkdownLoader,
             '.docx': Docx2txtLoader,
             '.pptx': UnstructuredPowerPointLoader,
-            # 代码文件支持
+            # Code file support
             '.py': TextLoader,
             '.js': TextLoader,
             '.ts': TextLoader,
@@ -59,7 +59,7 @@ class DocumentProcessor:
             '.sh': TextLoader,
             '.bat': TextLoader,
             '.ps1': TextLoader,
-            # 配置和数据文件
+            # Configuration and data files
             '.json': TextLoader,
             '.xml': TextLoader,
             '.yaml': TextLoader,
@@ -69,7 +69,7 @@ class DocumentProcessor:
             '.cfg': TextLoader,
             '.conf': TextLoader,
             '.csv': TextLoader,
-            # 标记和文档文件
+            # Markup and documentation files
             '.rst': TextLoader,
             '.html': TextLoader,
             '.htm': TextLoader,
@@ -77,7 +77,7 @@ class DocumentProcessor:
             '.scss': TextLoader,
             '.sass': TextLoader,
             '.less': TextLoader,
-            # 其他文本文件
+            # Other text files
             '.log': TextLoader,
             '.readme': TextLoader,
             '.license': TextLoader,
@@ -85,18 +85,18 @@ class DocumentProcessor:
             '.env': TextLoader
         }
         
-        # 初始化分块策略
+        # Initialize chunking strategy
         self.chunking_strategy_name = chunking_strategy
         self.strategy_params = strategy_params or {}
         
-        # 创建分块策略实例
+        # Create chunking strategy instance
         try:
             self.chunking_strategy = ChunkingStrategyFactory.create_strategy(
                 chunking_strategy, **self.strategy_params
             )
         except Exception as e:
-            print(f"⚠️ 分块策略创建失败，使用默认策略: {e}")
-            # 使用默认递归分块策略作为备用
+            print(f"⚠️ Failed to create chunking strategy, using default strategy: {e}")
+            # Use default recursive chunking strategy as fallback
             splitter_config = self.model_config.get_text_splitter_config()
             self.text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=splitter_config["parameters"]["chunk_size"],
@@ -106,7 +106,7 @@ class DocumentProcessor:
             self.chunking_strategy = None
     
     def get_file_hash(self, file_path: Union[str, Path]) -> str:
-        """计算文件哈希值，用于检测文件变化"""
+        """Calculate file hash for detecting file changes"""
         hash_md5 = hashlib.md5()
         with open(file_path, "rb") as f:
             for chunk in iter(lambda: f.read(4096), b""):
@@ -114,28 +114,28 @@ class DocumentProcessor:
         return hash_md5.hexdigest()
     
     def is_supported_file(self, file_path: Union[str, Path]) -> bool:
-        """检查文件是否支持"""
+        """Check if file is supported"""
         file_path = Path(file_path)
         return file_path.suffix.lower() in self.supported_extensions
     
     def load_document(self, file_path: Union[str, Path]) -> List[Document]:
-        """加载单个文档"""
+        """Load a single document"""
         file_path = Path(file_path)
         
         if not file_path.exists():
-            raise FileNotFoundError(f"文件不存在: {file_path}")
+            raise FileNotFoundError(f"File does not exist: {file_path}")
         
         if not self.is_supported_file(file_path):
-            raise ValueError(f"不支持的文件格式: {file_path.suffix}")
+            raise ValueError(f"Unsupported file format: {file_path.suffix}")
         
-        # 获取对应的加载器
+        # Get corresponding loader
         loader_class = self.supported_extensions[file_path.suffix.lower()]
         loader = loader_class(str(file_path))
         
         try:
             documents = loader.load()
             
-            # 添加元数据
+            # Add metadata
             file_hash = self.get_file_hash(file_path)
             file_stats = file_path.stat()
             
@@ -154,16 +154,16 @@ class DocumentProcessor:
             return documents
             
         except Exception as e:
-            raise RuntimeError(f"加载文档失败 {file_path}: {str(e)}")
+            raise RuntimeError(f"Failed to load document {file_path}: {str(e)}")
     
     def split_documents(self, documents: List[Document]) -> List[Document]:
-        """使用配置的分块策略分割文档"""
+        """Split documents using configured chunking strategy"""
         try:
             if self.chunking_strategy:
-                # 使用现代化的分块策略
+                # Use modern chunking strategy
                 split_docs = self.chunking_strategy.chunk_documents(documents)
                 
-                # 添加策略信息到元数据
+                # Add strategy information to metadata
                 strategy_info = self.chunking_strategy.get_strategy_info()
                 for doc in split_docs:
                     doc.metadata.update({
@@ -174,29 +174,29 @@ class DocumentProcessor:
                 
                 return split_docs
             else:
-                # 使用传统的文本分割器作为备用
+                # Use traditional text splitter as fallback
                 split_docs = self.text_splitter.split_documents(documents)
                 
-                # 为每个分块添加额外的元数据
+                # Add additional metadata for each chunk
                 for i, doc in enumerate(split_docs):
                     doc.metadata.update({
                         "chunk_id": i,
                         "chunk_size": len(doc.page_content),
                         "split_time": datetime.now().isoformat(),
                         "strategy_name": "legacy_recursive",
-                        "strategy_description": "传统递归分块策略"
+                        "strategy_description": "Legacy recursive chunking strategy"
                     })
                 
                 return split_docs
             
         except Exception as e:
-            raise RuntimeError(f"文档分割失败: {str(e)}")
+            raise RuntimeError(f"Document splitting failed: {str(e)}")
     
     def process_file(self, file_path: Union[str, Path], chunking_strategy: str = None, strategy_params: Dict[str, Any] = None) -> List[Document]:
-        """处理单个文件：加载 + 分割（支持临时指定分块策略）"""
+        """Process a single file: load + split (supports temporary chunking strategy specification)"""
         documents = self.load_document(file_path)
         
-        # 如果指定了临时策略，创建临时处理器
+        # If temporary strategy is specified, create temporary processor
         if chunking_strategy and chunking_strategy != self.chunking_strategy_name:
             temp_processor = DocumentProcessor(chunking_strategy, strategy_params or {})
             split_documents = temp_processor.split_documents(documents)
@@ -210,21 +210,21 @@ class DocumentProcessor:
                          auto_strategy: bool = True,
                          chunking_strategy: str = None,
                          strategy_params: Dict[str, Any] = None) -> List[Document]:
-        """处理目录中的所有支持文件（支持自动策略选择和格式特定处理）"""
+        """Process all supported files in directory (supports automatic strategy selection and format-specific processing)"""
         directory_path = Path(directory_path)
         
         if not directory_path.exists():
-            raise FileNotFoundError(f"目录不存在: {directory_path}")
+            raise FileNotFoundError(f"Directory does not exist: {directory_path}")
         
         if not directory_path.is_dir():
-            raise ValueError(f"路径不是目录: {directory_path}")
+            raise ValueError(f"Path is not a directory: {directory_path}")
         
         all_documents = []
         processed_files = []
         failed_files = []
         strategy_usage = {}
         
-        # 获取文件列表
+        # Get file list
         if recursive:
             file_pattern = "**/*"
         else:
@@ -233,58 +233,58 @@ class DocumentProcessor:
         for file_path in directory_path.glob(file_pattern):
             if file_path.is_file() and self.is_supported_file(file_path):
                 try:
-                    # 确定使用的分块策略
+                    # Determine chunking strategy to use
                     file_strategy = chunking_strategy
                     file_strategy_params = strategy_params or {}
                     
                     if auto_strategy and not chunking_strategy:
-                        # 根据文件类型自动选择最佳策略
+                        # Automatically select best strategy based on file type
                         file_ext = file_path.suffix.lower().lstrip('.')
                         file_strategy = ChunkingStrategyFactory.get_recommended_strategy(
                             file_type=file_ext
                         )
                         
-                        # 为格式特定策略设置参数
+                        # Set parameters for format-specific strategies
                         if file_strategy == "format":
                             file_strategy_params = {"format_type": file_ext}
                         elif file_strategy == "code" and file_ext in ["py", "js", "java", "cpp"]:
                             file_strategy_params = {"language": file_ext}
                     
-                    # 统计策略使用情况
+                    # Track strategy usage
                     strategy_usage[file_strategy] = strategy_usage.get(file_strategy, 0) + 1
                     
-                    # 处理文件
+                    # Process file
                     documents = self.process_file(file_path, file_strategy, file_strategy_params)
                     all_documents.extend(documents)
                     processed_files.append(str(file_path))
                     
-                    # 显示处理结果，包含策略信息
+                    # Display processing result with strategy information
                     strategy_display = file_strategy
                     if file_strategy == "format" and "format_type" in file_strategy_params:
                         strategy_display += f"({file_strategy_params['format_type']})"
                     elif file_strategy == "code" and "language" in file_strategy_params:
                         strategy_display += f"({file_strategy_params['language']})"
                     
-                    print(f"✅ 处理成功: {file_path.name} ({len(documents)} 个分块) [策略: {strategy_display}]")
+                    print(f"Processing successful: {file_path.name} ({len(documents)} chunks) [Strategy: {strategy_display}]")
                     
                 except Exception as e:
                     failed_files.append((str(file_path), str(e)))
-                    print(f"❌ 处理失败: {file_path.name} - {str(e)}")
+                    print(f"Processing failed: {file_path.name} - {str(e)}")
         
-        print(f"\n📊 处理统计:")
-        print(f"  成功处理: {len(processed_files)} 个文件")
-        print(f"  失败文件: {len(failed_files)} 个文件")
-        print(f"  总分块数: {len(all_documents)} 个")
+        print(f"\nProcessing Statistics:")
+        print(f"  Successfully processed: {len(processed_files)} files")
+        print(f"  Failed files: {len(failed_files)} files")
+        print(f"  Total chunks: {len(all_documents)} chunks")
         
         if strategy_usage:
-            print(f"\n🧠 分块策略使用统计:")
+            print(f"\nChunking Strategy Usage Statistics:")
             for strategy, count in sorted(strategy_usage.items()):
-                print(f"  {strategy}: {count} 个文件")
+                print(f"  {strategy}: {count} files")
         
         return all_documents
     
     def extract_metadata_summary(self, documents: List[Document]) -> Dict[str, Any]:
-        """提取文档集合的元数据摘要（包含分块策略统计）"""
+        """Extract metadata summary from document collection (includes chunking strategy statistics)"""
         if not documents:
             return {}
         
@@ -297,18 +297,18 @@ class DocumentProcessor:
         for doc in documents:
             metadata = doc.metadata
             
-            # 统计文件类型
+            # Count file types
             file_type = metadata.get("file_type", "unknown")
             file_types[file_type] = file_types.get(file_type, 0) + 1
             
-            # 统计分块策略
+            # Count chunking strategies
             strategy_name = metadata.get("strategy_name", "unknown")
             chunking_strategies[strategy_name] = chunking_strategies.get(strategy_name, 0) + 1
             
-            # 累计文件大小
+            # Accumulate file size
             total_size += metadata.get("file_size", 0)
             
-            # 收集源文件
+            # Collect source files
             source = metadata.get("source")
             if source:
                 sources.add(source)
@@ -324,13 +324,13 @@ class DocumentProcessor:
         }
     
     def get_strategy_info(self) -> Dict[str, Any]:
-        """获取当前分块策略信息"""
+        """Get current chunking strategy information"""
         if self.chunking_strategy:
             return self.chunking_strategy.get_strategy_info()
         else:
             return {
                 "name": "legacy_recursive",
-                "description": "传统递归字符分块策略",
+                "description": "Legacy recursive character chunking strategy",
                 "parameters": {
                     "chunk_size": getattr(self.text_splitter, 'chunk_size', 'unknown'),
                     "chunk_overlap": getattr(self.text_splitter, 'chunk_overlap', 'unknown')
@@ -339,25 +339,25 @@ class DocumentProcessor:
     
     @staticmethod
     def list_available_strategies() -> Dict[str, Dict[str, Any]]:
-        """列出所有可用的分块策略"""
+        """List all available chunking strategies"""
         return ChunkingStrategyFactory.list_strategies()
     
     @staticmethod
     def get_strategy_recommendation(file_type: str = None, use_case: str = None) -> str:
-        """获取策略推荐"""
+        """Get strategy recommendation"""
         return ChunkingStrategyFactory.get_recommended_strategy(file_type=file_type, use_case=use_case)
 
 
 class DocumentValidator:
-    """文档验证器"""
+    """Document Validator"""
     
     @staticmethod
     def validate_document_content(document: Document) -> bool:
-        """验证文档内容是否有效"""
+        """Validate if document content is valid"""
         if not document.page_content or not document.page_content.strip():
             return False
         
-        # 检查内容长度
+        # Check content length
         if len(document.page_content.strip()) < 10:
             return False
         
@@ -365,17 +365,17 @@ class DocumentValidator:
     
     @staticmethod
     def validate_documents(documents: List[Document]) -> List[Document]:
-        """验证并过滤有效文档"""
+        """Validate and filter valid documents"""
         valid_documents = []
         
         for doc in documents:
             if DocumentValidator.validate_document_content(doc):
                 valid_documents.append(doc)
             else:
-                print(f"⚠️  跳过无效文档块: {doc.metadata.get('source', 'unknown')}")
+                print(f"Skipping invalid document chunk: {doc.metadata.get('source', 'unknown')}")
         
         return valid_documents
 
 
-# 创建全局文档处理器实例（使用默认递归策略）
+# Create global document processor instance (using default recursive strategy)
 document_processor = DocumentProcessor()

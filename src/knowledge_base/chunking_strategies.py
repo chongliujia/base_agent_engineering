@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-文档分块策略模块 - 模块化设计，支持多种分块策略
+Document Chunking Strategy Module - Modular design supporting multiple chunking strategies
 """
 
 from abc import ABC, abstractmethod
@@ -24,23 +24,23 @@ from config.settings import get_model_config
 
 
 class BaseChunkingStrategy(ABC):
-    """分块策略基类"""
+    """Base class for chunking strategies"""
     
     def __init__(self, **kwargs):
         self.config = kwargs
     
     @abstractmethod
     def chunk_documents(self, documents: List[Document]) -> List[Document]:
-        """分块文档的抽象方法"""
+        """Abstract method for chunking documents"""
         pass
     
     @abstractmethod
     def get_strategy_info(self) -> Dict[str, Any]:
-        """获取策略信息"""
+        """Get strategy information"""
         pass
     
     def _add_chunk_metadata(self, chunks: List[Document], strategy_name: str) -> List[Document]:
-        """为分块添加策略相关的元数据"""
+        """Add strategy-related metadata to chunks"""
         for i, chunk in enumerate(chunks):
             chunk.metadata.update({
                 "chunk_id": i,
@@ -53,7 +53,7 @@ class BaseChunkingStrategy(ABC):
 
 
 class RecursiveChunkingStrategy(BaseChunkingStrategy):
-    """递归字符分块策略 - 最通用的策略"""
+    """Recursive character chunking strategy - Most versatile strategy"""
     
     def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200, 
                  separators: Optional[List[str]] = None, **kwargs):
@@ -74,19 +74,19 @@ class RecursiveChunkingStrategy(BaseChunkingStrategy):
     def get_strategy_info(self) -> Dict[str, Any]:
         return {
             "name": "recursive",
-            "description": "递归字符分块 - 按层次分隔符分块",
+            "description": "Recursive character chunking - Chunks by hierarchical separators",
             "parameters": {
                 "chunk_size": self.chunk_size,
                 "chunk_overlap": self.chunk_overlap,
                 "separators": self.separators
             },
-            "suitable_for": ["通用文档", "技术文档", "小说", "报告"],
-            "advantages": ["智能分割", "保持语义连贯", "适用性广"]
+            "suitable_for": ["General documents", "Technical documents", "Novels", "Reports"],
+            "advantages": ["Smart splitting", "Maintains semantic coherence", "Wide applicability"]
         }
 
 
 class TokenChunkingStrategy(BaseChunkingStrategy):
-    """基于Token的分块策略 - 适合LLM处理"""
+    """Token-based chunking strategy - Suitable for LLM processing"""
     
     def __init__(self, chunk_size: int = 512, chunk_overlap: int = 50, **kwargs):
         super().__init__(**kwargs)
@@ -104,18 +104,18 @@ class TokenChunkingStrategy(BaseChunkingStrategy):
     def get_strategy_info(self) -> Dict[str, Any]:
         return {
             "name": "token",
-            "description": "基于Token分块 - 按Token数量精确分块",
+            "description": "Token-based chunking - Precise chunking by token count",
             "parameters": {
                 "chunk_size": self.chunk_size,
                 "chunk_overlap": self.chunk_overlap
             },
-            "suitable_for": ["LLM输入", "API调用", "成本敏感场景"],
-            "advantages": ["Token精确控制", "成本可预测", "LLM友好"]
+            "suitable_for": ["LLM input", "API calls", "Cost-sensitive scenarios"],
+            "advantages": ["Precise token control", "Predictable costs", "LLM-friendly"]
         }
 
 
 class SemanticChunkingStrategy(BaseChunkingStrategy):
-    """语义分块策略 - 基于语义相似度分块"""
+    """Semantic chunking strategy - Chunks based on semantic similarity"""
     
     def __init__(self, breakpoint_threshold_type: str = "percentile", 
                  threshold: Optional[float] = None, **kwargs):
@@ -124,13 +124,13 @@ class SemanticChunkingStrategy(BaseChunkingStrategy):
         self.threshold = threshold
         
         if not SEMANTIC_AVAILABLE:
-            raise ImportError("SemanticChunker需要安装langchain-experimental包")
+            raise ImportError("SemanticChunker requires langchain-experimental package")
         
-        # 获取嵌入模型
+        # Get embedding model
         model_config = get_model_config()
         self.embedding_model = model_config.get_embedding_model()
         
-        # 创建语义分块器
+        # Create semantic chunker
         params = {
             "embeddings": self.embedding_model,
             "breakpoint_threshold_type": self.breakpoint_threshold_type
@@ -147,19 +147,19 @@ class SemanticChunkingStrategy(BaseChunkingStrategy):
     def get_strategy_info(self) -> Dict[str, Any]:
         return {
             "name": "semantic",
-            "description": "语义分块 - 基于语义相似度智能分块",
+            "description": "Semantic chunking - Smart chunking based on semantic similarity",
             "parameters": {
                 "breakpoint_threshold_type": self.breakpoint_threshold_type,
                 "threshold": self.threshold
             },
-            "suitable_for": ["长文档", "学术论文", "技术规范", "知识库构建"],
-            "advantages": ["语义连贯", "智能断点", "高质量分块"],
-            "requirements": ["需要嵌入模型", "计算开销较大"]
+            "suitable_for": ["Long documents", "Academic papers", "Technical specifications", "Knowledge base construction"],
+            "advantages": ["Semantic coherence", "Smart breakpoints", "High-quality chunks"],
+            "requirements": ["Requires embedding model", "Higher computational overhead"]
         }
 
 
 class CharacterChunkingStrategy(BaseChunkingStrategy):
-    """简单字符分块策略 - 按固定字符数分块"""
+    """Simple character chunking strategy - Chunks by fixed character count"""
     
     def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200, 
                  separator: str = "\n\n", **kwargs):
@@ -180,19 +180,19 @@ class CharacterChunkingStrategy(BaseChunkingStrategy):
     def get_strategy_info(self) -> Dict[str, Any]:
         return {
             "name": "character",
-            "description": "简单字符分块 - 按固定字符数和分隔符分块",
+            "description": "Simple character chunking - Chunks by fixed character count and separator",
             "parameters": {
                 "chunk_size": self.chunk_size,
                 "chunk_overlap": self.chunk_overlap,
                 "separator": self.separator
             },
-            "suitable_for": ["结构化文档", "代码文件", "简单文本"],
-            "advantages": ["处理速度快", "结果可预测", "资源消耗少"]
+            "suitable_for": ["Structured documents", "Code files", "Simple text"],
+            "advantages": ["Fast processing", "Predictable results", "Low resource consumption"]
         }
 
 
 class CodeChunkingStrategy(BaseChunkingStrategy):
-    """代码文档分块策略 - 按代码结构分块"""
+    """Code document chunking strategy - Chunks by code structure"""
     
     def __init__(self, language: str = "python", chunk_size: int = 1500, 
                  chunk_overlap: int = 100, **kwargs):
@@ -201,7 +201,7 @@ class CodeChunkingStrategy(BaseChunkingStrategy):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         
-        # 根据语言设置分隔符
+        # Set separators based on language
         self.separators = self._get_language_separators(language)
         
         self.splitter = RecursiveCharacterTextSplitter(
@@ -211,7 +211,7 @@ class CodeChunkingStrategy(BaseChunkingStrategy):
         )
     
     def _get_language_separators(self, language: str) -> List[str]:
-        """根据编程语言获取合适的分隔符"""
+        """Get appropriate separators based on programming language"""
         separators_map = {
             "python": ["\nclass ", "\ndef ", "\n\ndef ", "\n\n", "\n", " ", ""],
             "javascript": ["\nfunction ", "\nconst ", "\nlet ", "\nvar ", "\n\n", "\n", " ", ""],
@@ -230,20 +230,20 @@ class CodeChunkingStrategy(BaseChunkingStrategy):
     def get_strategy_info(self) -> Dict[str, Any]:
         return {
             "name": f"code_{self.language}",
-            "description": f"代码分块策略 - 针对{self.language}代码结构优化",
+            "description": f"Code chunking strategy - Optimized for {self.language} code structure",
             "parameters": {
                 "language": self.language,
                 "chunk_size": self.chunk_size,
                 "chunk_overlap": self.chunk_overlap,
                 "separators": self.separators
             },
-            "suitable_for": [f"{self.language}代码", "API文档", "技术规范"],
-            "advantages": ["保持代码结构", "函数完整性", "语法感知"]
+            "suitable_for": [f"{self.language} code", "API documentation", "Technical specifications"],
+            "advantages": ["Preserves code structure", "Function integrity", "Syntax awareness"]
         }
 
 
 class DocumentFormatStrategy(BaseChunkingStrategy):
-    """文档格式特定分块策略 - 根据文档格式优化分块"""
+    """Document format-specific chunking strategy - Optimizes chunking based on document format"""
     
     def __init__(self, format_type: str = "pdf", **kwargs):
         super().__init__(**kwargs)
@@ -251,7 +251,7 @@ class DocumentFormatStrategy(BaseChunkingStrategy):
         self.strategy = self._create_format_strategy()
     
     def _create_format_strategy(self) -> BaseChunkingStrategy:
-        """根据文档格式创建相应的分块策略"""
+        """Create appropriate chunking strategy based on document format"""
         format_configs = {
             "pdf": {
                 "chunk_size": 1200,
@@ -285,7 +285,7 @@ class DocumentFormatStrategy(BaseChunkingStrategy):
     
     def chunk_documents(self, documents: List[Document]) -> List[Document]:
         chunks = self.strategy.chunk_documents(documents)
-        # 更新分块策略名称
+        # Update chunking strategy name
         for chunk in chunks:
             chunk.metadata["chunking_strategy"] = f"format_{self.format_type}"
         return chunks
@@ -294,15 +294,15 @@ class DocumentFormatStrategy(BaseChunkingStrategy):
         base_info = self.strategy.get_strategy_info()
         base_info.update({
             "name": f"format_{self.format_type}",
-            "description": f"文档格式优化分块 - 针对{self.format_type.upper()}格式优化",
-            "suitable_for": [f"{self.format_type.upper()}文档"],
-            "advantages": ["格式特定优化", "最佳参数配置", "高质量分块"]
+            "description": f"Document format optimized chunking - Optimized for {self.format_type.upper()} format",
+            "suitable_for": [f"{self.format_type.upper()} documents"],
+            "advantages": ["Format-specific optimization", "Optimal parameter configuration", "High-quality chunks"]
         })
         return base_info
 
 
 class ChunkingStrategyFactory:
-    """分块策略工厂类 - 管理所有分块策略"""
+    """Chunking strategy factory class - Manages all chunking strategies"""
     
     _strategies = {
         "recursive": RecursiveChunkingStrategy,
@@ -317,22 +317,22 @@ class ChunkingStrategyFactory:
     
     @classmethod
     def create_strategy(cls, strategy_name: str, **kwargs) -> BaseChunkingStrategy:
-        """创建分块策略实例"""
+        """Create chunking strategy instance"""
         if strategy_name not in cls._strategies:
             available = ", ".join(cls._strategies.keys())
-            raise ValueError(f"未知的分块策略: {strategy_name}。可用策略: {available}")
+            raise ValueError(f"Unknown chunking strategy: {strategy_name}. Available strategies: {available}")
         
         strategy_class = cls._strategies[strategy_name]
         return strategy_class(**kwargs)
     
     @classmethod
     def list_strategies(cls) -> Dict[str, Dict[str, Any]]:
-        """列出所有可用的分块策略"""
+        """List all available chunking strategies"""
         strategies_info = {}
         
         for name, strategy_class in cls._strategies.items():
             try:
-                # 创建默认实例来获取信息
+                # Create default instance to get information
                 if name == "code":
                     strategy = strategy_class(language="python")
                 elif name == "format":
@@ -344,7 +344,7 @@ class ChunkingStrategyFactory:
             except Exception as e:
                 strategies_info[name] = {
                     "name": name,
-                    "description": f"策略创建失败: {str(e)}",
+                    "description": f"Strategy creation failed: {str(e)}",
                     "available": False
                 }
         
@@ -352,19 +352,19 @@ class ChunkingStrategyFactory:
     
     @classmethod
     def register_strategy(cls, name: str, strategy_class: type):
-        """注册新的分块策略"""
+        """Register new chunking strategy"""
         if not issubclass(strategy_class, BaseChunkingStrategy):
-            raise ValueError("策略类必须继承自BaseChunkingStrategy")
+            raise ValueError("Strategy class must inherit from BaseChunkingStrategy")
         
         cls._strategies[name] = strategy_class
-        print(f"✅ 成功注册分块策略: {name}")
+        print(f"✅ Successfully registered chunking strategy: {name}")
     
     @classmethod
     def get_recommended_strategy(cls, file_type: str = None, 
                                 use_case: str = None) -> str:
-        """根据文件类型和使用场景推荐最佳策略"""
+        """Recommend best strategy based on file type and use case"""
         recommendations = {
-            # 文件类型推荐
+            # File type recommendations
             "pdf": "format",
             "docx": "format", 
             "txt": "recursive",
@@ -375,7 +375,7 @@ class ChunkingStrategyFactory:
             "java": "code",
             "cpp": "code",
             
-            # 使用场景推荐
+            # Use case recommendations
             "general": "recursive",
             "llm_input": "token", 
             "knowledge_base": "semantic" if SEMANTIC_AVAILABLE else "recursive",
@@ -391,7 +391,7 @@ class ChunkingStrategyFactory:
             return "recursive"
 
 
-# 导出主要接口
+# Export main interfaces
 __all__ = [
     "BaseChunkingStrategy",
     "RecursiveChunkingStrategy", 

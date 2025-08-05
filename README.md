@@ -2,113 +2,105 @@
 
 <div align="center">
 
-[![English](https://img.shields.io/badge/Language-English-blue)](./README_EN.md)
-[![中文](https://img.shields.io/badge/语言-中文-red)](./README.md)
+[![English](https://img.shields.io/badge/Language-English-blue)](./README.md)
+[![中文](https://img.shields.io/badge/语言-中文-red)](./README_CN.md)
 
 </div>
 
 ---
 
-## English | [中文](./README.md)
+## English | [中文](./README_CN.md)
 
 🚀 **Intelligent RAG System** - High-performance Retrieval-Augmented Generation (RAG) service based on FastAPI, integrating knowledge base retrieval and web search for a hybrid intelligent assistant.
 
-[📖 **Read in English →**](./README_EN.md)
+## ✨ Core Features
 
----
+- 🔍 **Hybrid Retrieval Strategy**: Intelligent fusion of knowledge base + web search
+- 🧠 **Context Engineering**: Smart context selection, compression, and optimization
+- ⚡ **High-Performance API**: FastAPI-based asynchronous processing with streaming response support
+- 📚 **Knowledge Base Management**: Multi-format document support with intelligent chunking strategies
+- 🎯 **Smart Routing**: Automatic selection of optimal retrieval strategy based on query type
+- 📊 **Comprehensive Evaluation**: Complete evaluation system for retrieval quality and generation effectiveness
+- 🐳 **Containerized Deployment**: One-click Docker deployment with vector database management interface
 
-## [English](./README_EN.md) | 中文
+## 🏗️ System Architecture
 
-🚀 **智能RAG系统** - 基于FastAPI的高性能检索增强生成(RAG)服务，集成知识库检索和联网搜索的混合智能助手。
+## 🚀 Quick Start
 
-## ✨ 核心特性
-
-- 🔍 **混合检索策略**: 知识库 + 联网搜索的智能融合
-- 🧠 **上下文工程**: 智能上下文选择、压缩和优化
-- ⚡ **高性能API**: 基于FastAPI的异步处理，支持流式响应
-- 📚 **知识库管理**: 多种文档格式支持，智能分块策略
-- 🎯 **智能路由**: 根据查询类型自动选择最优检索策略
-- 📊 **完整评估**: 检索质量和生成效果的全面评估体系
-- 🐳 **容器化部署**: Docker一键部署，包含向量数据库管理界面
-
-## 🏗️ 系统架构
-
-## 🚀 快速开始
-
-### 环境要求
+### Requirements
 
 - Python 3.9+
 - Docker & Docker Compose
-- 8GB+ RAM (推荐16GB)
+- 8GB+ RAM (16GB recommended)
 
-### 1. 克隆项目
+### 1. Clone Repository
 
 ```bash
 git clone https://github.com/your-username/base_agent_engineering.git
 cd base_agent_engineering
 ```
 
-### 2. 环境配置
+### 2. Environment Configuration
 
 ```bash
-# 复制环境变量模板
+# Copy environment template
 cp .env.example .env
 
-# 编辑配置文件，添加API密钥
+# Edit configuration file and add API keys
 vim .env
 ```
 
-### 3. 一键启动
+### 3. One-Click Launch
 
 ```bash
-# 启动所有服务 (包含Milvus + Attu管理界面)
+# Start all services (including Milvus + Attu management interface)
 docker-compose up -d
 
-# 安装Python依赖
+# Install Python dependencies
 pip install -r requirements.txt
 
-# 启动RAG API服务
+# Start RAG API service
 python main.py
 ```
 
-### 4. 验证安装
+### 4. Verify Installation
 
 ```bash
-# 健康检查
+# Health check
 curl http://localhost:8010/health
 
-# 获取模型信息
+# Get model information
 curl http://localhost:8010/api/v1/models
 
-# 测试聊天功能
+# Test chat functionality
 curl -X POST "http://localhost:8010/api/v1/chat" \
   -H "Content-Type: application/json" \
-  -d '{"query": "你好，介绍一下自己", "search_strategy": "web_only"}'
+  -d '{"query": "Hello, please introduce yourself", "search_strategy": "web_only"}'
 ```
 
-## 📖 使用指南
+## 📖 Usage Guide
 
-### API接口
+### API Endpoints
 
-> 📖 **详细的API文档**: [Chat_API_使用文档.md](./Chat_API_使用文档.md) | [Chat_API_URL使用示例.md](./Chat_API_URL使用示例.md)
+> 📖 **Detailed API Documentation**: [Chat_API_Usage_Guide.md](./Chat_API_Usage_Guide.md) | [Chat_API_URL_Examples.md](./Chat_API_URL_Examples.md)
 
-#### 基础聊天接口
+#### Basic Chat Interface
 
 **URL**: `POST http://localhost:8010/api/v1/chat`
 
 ```bash
-# 基础问答
+# Basic Q&A
 curl -X POST "http://localhost:8010/api/v1/chat" \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "什么是人工智能？",
+    "query": "What is artificial intelligence?",
     "search_strategy": "both",
     "max_web_results": 5,
     "max_kb_results": 5
   }'
 ```
 
-#### 流式聊天接口
+#### Streaming Chat Interface
 
 **URL**: `POST http://localhost:8010/api/v1/chat/stream`
 
@@ -116,102 +108,102 @@ curl -X POST "http://localhost:8010/api/v1/chat" \
 curl -X POST "http://localhost:8010/api/v1/chat/stream" \
   -H "Content-Type: application/json" \
   -d '{
-    "query": "解释深度学习的原理",
+    "query": "Explain the principles of deep learning",
     "stream": true
   }' \
   --no-buffer -N
 ```
 
-#### 知识库管理
+#### Knowledge Base Management
 
 ```bash
-# 获取知识库列表
+# Get knowledge base list
 curl -X GET "http://localhost:8010/api/v1/knowledge-bases"
 
-# 切换知识库
+# Switch knowledge base
 curl -X POST "http://localhost:8010/api/v1/switch-kb/ai_research"
 ```
 
-### 命令行工具
+### Command Line Tools
 
-#### 知识库管理
+#### Knowledge Base Management
 
 ```bash
-# 创建知识库
-python -m cli kb create --name "tech_docs" --description "技术文档库"
+# Create knowledge base
+python -m cli kb create --name "tech_docs" --description "Technical documentation repository"
 
-# 上传文档
+# Upload document
 python -m cli docs upload --file document.pdf --collection tech_docs
 
-# 批量上传
+# Batch upload
 python -m cli docs batch-upload --directory ./documents/ --collection tech_docs
 
-# 查看状态
+# View status
 python -m cli kb stats --name tech_docs
 ```
 
-#### 搜索测试
+#### Search Testing
 
 ```bash
-# 交互式搜索
+# Interactive search
 python -m cli search --interactive --collection tech_docs
 
-# 单次搜索
-python -m cli search --query "机器学习是什么" --collection tech_docs
+# Single search
+python -m cli search --query "What is machine learning" --collection tech_docs
 
-# 混合搜索测试
-python -m cli search --query "最新AI发展" --hybrid
+# Hybrid search testing
+python -m cli search --query "Latest AI developments" --hybrid
 ```
 
-#### 评估测试
+#### Evaluation Testing
 
 ```bash
-# 检索质量评估
+# Retrieval quality evaluation
 python -m cli eval retrieval --collection tech_docs --test-file test_queries.json
 
-# 分块策略评估
+# Chunking strategy evaluation
 python -m cli eval chunking --strategy semantic --test-file test_docs.json
 
-# 生成基准测试报告
+# Generate benchmark test report
 python -m cli eval report --output evaluation_report.html
 ```
 
-## ⚙️ 配置说明
+## ⚙️ Configuration
 
-### 环境变量 (.env)
+### Environment Variables (.env)
 
 ```bash
-# API服务配置
+# API service configuration
 API_HOST=0.0.0.0
-API_PORT=8010                       # Chat API服务端口
+API_PORT=8010                       # Chat API service port
 API_WORKERS=4
 
-# 数据库配置
+# Database configuration
 MILVUS_HOST=localhost
 MILVUS_PORT=19530
 REDIS_URL=redis://localhost:6379
 
-# API密钥
-TAVILY_API_KEY=your_tavily_api_key  # 网络搜索API密钥
+# API keys
+TAVILY_API_KEY=your_tavily_api_key  # Web search API key
 
-# 模型配置
-DEFAULT_CHAT_MODEL=qwen-plus        # 千问Plus模型
+# Model configuration
+DEFAULT_CHAT_MODEL=qwen-plus        # Qwen Plus model
 DEFAULT_EMBEDDING_MODEL=text-embedding-v4
 
-# 日志配置
+# Logging configuration
 LOG_LEVEL=INFO
 ```
 
-### 端口配置
+### Port Configuration
 
 ```bash
-# 服务端口分配
-8010    # Chat API主服务
-19530   # Milvus向量数据库 (内部)
-6379    # Redis缓存 (内部)
+# Service port allocation
+8010    # Chat API main service
+19530   # Milvus vector database (internal)
+6379    # Redis cache (internal)
 ```
 
-### 模型配置
+### Model Configuration
 
 ```yaml
 # config/models/chat_models.yaml
@@ -233,7 +225,7 @@ models:
     cost_per_1k_tokens: 0.002
 ```
 
-### 检索策略配置
+### Retrieval Strategy Configuration
 
 ```yaml
 # config/rag/hybrid_strategy_config.yaml
@@ -252,83 +244,83 @@ retrieval_strategies:
     web_search_weight: 0.1
 ```
 
-## 📊 性能监控
+## 📊 Performance Monitoring
 
-### 系统指标
+### System Metrics
 
 ```bash
-# 查看系统状态
+# Check system status
 curl http://localhost:8010/health
 
-# 获取详细健康检查
+# Get detailed health check
 curl http://localhost:8010/api/v1/health
 
-# 查看模型信息
+# View model information
 curl http://localhost:8010/api/v1/models
 ```
 
-### 系统监控
+### System Monitoring
 
-**当前服务状态**:
-- **服务端口**: 8010
-- **聊天模型**: qwen-plus (千问Plus)
-- **嵌入模型**: text-embedding-v4  
-- **向量数据库**: Milvus
-- **可用知识库**: 5个 (ai_research, knowledge_base, metadata, strategy_test, strategy_test_auto)
-- **网络搜索**: ✅ 已启用 (Tavily)
-- **语言自适应**: ✅ 已启用（自动检测用户语言并匹配回答语言）
-- **Markdown支持**: ✅ 已启用（支持格式化输出）
+**Current Service Status**:
+- **Service Port**: 8010
+- **Chat Model**: qwen-plus (Qwen Plus)
+- **Embedding Model**: text-embedding-v4  
+- **Vector Database**: Milvus
+- **Available Knowledge Bases**: 5 (ai_research, knowledge_base, metadata, strategy_test, strategy_test_auto)
+- **Web Search**: ✅ Enabled (Tavily)
+- **Language Adaptation**: ✅ Enabled (Auto-detect user language and match response language)
+- **Markdown Support**: ✅ Enabled (Supports formatted output)
 
-## 🧪 测试和评估
+## 🧪 Testing and Evaluation
 
-### 运行测试
+### Running Tests
 
 ```bash
-# 运行所有测试
+# Run all tests
 python scripts/run_tests.py
 
-# 或者直接使用pytest
+# Or use pytest directly
 pytest tests/unit/ -v
 
-# 运行特定测试文件
+# Run specific test file
 pytest tests/unit/test_config.py -v
 
-# 生成覆盖率报告
+# Generate coverage report
 pytest --cov=config --cov=src --cov=app --cov-report=html
 ```
 
-### 评估指标
+### Evaluation Metrics
 
-- **检索质量**: Precision@K, Recall@K, MRR, NDCG
-- **生成质量**: BLEU, ROUGE, 语义相似度
-- **系统性能**: 响应时间, QPS, 资源使用率
-- **用户体验**: 答案相关性, 信息完整性
+- **Retrieval Quality**: Precision@K, Recall@K, MRR, NDCG
+- **Generation Quality**: BLEU, ROUGE, Semantic Similarity
+- **System Performance**: Response Time, QPS, Resource Usage
+- **User Experience**: Answer Relevance, Information Completeness
 
-## 🚀 部署指南
+## 🚀 Deployment Guide
 
-### 开发环境
+### Development Environment
 
 ```bash
-# 启动开发服务器
+# Start development server
 python main.py
 
-# 或使用uvicorn
+# Or use uvicorn
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8010
 ```
 
-### 生产环境
+### Production Environment
 
 ```bash
-# 使用Docker Compose
+# Using Docker Compose
 docker-compose -f docker-compose.prod.yml up -d
 
-# 或使用Kubernetes
+# Or using Kubernetes
 kubectl apply -f deployment/k8s/
 ```
 
-### 与Web服务集成
+### Web Service Integration
 
-如果需要与其他Web服务部署在同一服务器，可以使用Nginx反向代理：
+If you need to deploy with other web services on the same server, you can use Nginx reverse proxy:
 
 ```nginx
 # /etc/nginx/sites-available/your-site
@@ -336,14 +328,14 @@ server {
     listen 80;
     server_name your-domain.com;
 
-    # 主Web应用
+    # Main web application
     location / {
-        proxy_pass http://localhost:3000;  # 你的主Web服务
+        proxy_pass http://localhost:3000;  # Your main web service
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
-    # Chat API服务
+    # Chat API service
     location /api/chat/ {
         proxy_pass http://localhost:8010/api/v1/;
         proxy_set_header Host $host;
@@ -353,71 +345,71 @@ server {
 }
 ```
 
-### 性能优化
+### Performance Optimization
 
-- **并发处理**: 多worker进程
-- **缓存策略**: Redis缓存热点数据
-- **负载均衡**: Nginx反向代理
-- **监控告警**: Prometheus + Grafana
+- **Concurrent Processing**: Multi-worker processes
+- **Caching Strategy**: Redis caching for hot data
+- **Load Balancing**: Nginx reverse proxy
+- **Monitoring & Alerting**: Prometheus + Grafana
 
-## 🛠️ 开发指南
+## 🛠️ Development Guide
 
-### 添加新功能
+### Adding New Features
 
-1. **新增检索策略**: 在 `src/retrieval/` 下实现
-2. **新增分块方法**: 在 `src/knowledge_base/ingestion/` 下实现
-3. **新增评估指标**: 在 `src/evaluation/` 下实现
-4. **新增API接口**: 在 `app/api/` 下实现
+1. **New Retrieval Strategy**: Implement in `src/retrieval/`
+2. **New Chunking Method**: Implement in `src/knowledge_base/ingestion/`
+3. **New Evaluation Metrics**: Implement in `src/evaluation/`
+4. **New API Endpoints**: Implement in `app/api/`
 
-### 代码规范
+### Code Standards
 
 ```bash
-# 代码格式化
+# Code formatting
 black .
 isort .
 
-# 类型检查
+# Type checking
 mypy .
 
-# 代码质量检查
+# Code quality check
 flake8 .
 ```
 
-## 🤝 贡献指南
+## 🤝 Contributing
 
-1. Fork 项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开 Pull Request
+1. Fork the project
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-## 📄 许可证
+## 📄 License
 
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙋‍♂️ 常见问题
+## 🙋‍♂️ FAQ
 
-### Q: 如何添加新的文档类型支持？
-A: 在 `src/knowledge_base/ingestion/document_processor.py` 中添加新的解析器。
+### Q: How to add support for new document types?
+A: Add new parsers in `src/knowledge_base/ingestion/document_processor.py`.
 
-### Q: 如何优化检索性能？
-A: 调整 `config/retrieval/` 下的配置文件，或使用 `python -m cli eval` 进行性能测试。
+### Q: How to optimize retrieval performance?
+A: Adjust configuration files in `config/retrieval/` or use `python -m cli eval` for performance testing.
 
-### Q: 如何切换不同的向量数据库？
-A: 修改 `docker-compose.yml` 和相应的配置文件，支持Milvus、Qdrant、Weaviate等。
+### Q: How to switch to different vector databases?
+A: Modify `docker-compose.yml` and corresponding configuration files, supports Milvus, Qdrant, Weaviate, etc.
 
-### Q: 如何监控系统性能？
-A: 使用Attu界面监控Milvus，通过 `/api/v1/metrics` 接口获取API指标。
+### Q: How to monitor system performance?
+A: Use Attu interface to monitor Milvus, get API metrics through `/api/v1/metrics` endpoint.
 
-### Q: 端口冲突怎么办？
-A: 修改 `.env` 文件中的端口配置，默认使用8888(API)和8889(管理界面)避免常用端口冲突。
+### Q: What to do about port conflicts?
+A: Modify port configuration in `.env` file, defaults use 8010(API) to avoid common port conflicts.
 
-## 📞 支持
+## 📞 Support
 
 - 📧 Email: your-email@example.com
 - 💬 Issues: [GitHub Issues](https://github.com/your-username/base_agent_engineering/issues)
-- 📖 文档: [项目Wiki](https://github.com/your-username/base_agent_engineering/wiki)
+- 📖 Documentation: [Project Wiki](https://github.com/your-username/base_agent_engineering/wiki)
 
 ---
 
-⭐ 如果这个项目对你有帮助，请给个Star支持一下！
+⭐ If this project helps you, please give it a Star!

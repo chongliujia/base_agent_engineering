@@ -1,5 +1,5 @@
 """
-DashScope重排序模型实现
+DashScope Reranking Model Implementation
 """
 
 import dashscope
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class DashScopeRerank:
-    """DashScope重排序模型封装类"""
+    """DashScope reranking model wrapper class"""
     
     def __init__(
         self,
@@ -23,19 +23,19 @@ class DashScopeRerank:
         **kwargs
     ):
         """
-        初始化DashScope重排序模型
+        Initialize DashScope reranking model
         
         Args:
-            model: 模型名称，默认为gte-rerank-v2
-            api_key: API密钥，如果未提供则从环境变量获取
-            top_n: 返回的文档数量
-            return_documents: 是否返回文档内容
+            model: Model name, default is gte-rerank-v2
+            api_key: API key, if not provided will get from environment variable
+            top_n: Number of documents to return
+            return_documents: Whether to return document content
         """
         self.model = model
         self.top_n = top_n
         self.return_documents = return_documents
         
-        # 设置API密钥
+        # Set API key
         if api_key:
             dashscope.api_key = api_key
         elif os.getenv("DASHSCOPE_API_KEY"):
@@ -50,15 +50,15 @@ class DashScopeRerank:
         top_n: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
-        对文档进行重排序
+        Rerank documents
         
         Args:
-            query: 查询文本
-            documents: 文档列表
-            top_n: 返回的文档数量，如果未指定则使用初始化时的值
+            query: Query text
+            documents: List of documents
+            top_n: Number of documents to return, if not specified will use initialization value
             
         Returns:
-            重排序后的文档列表，包含文档内容和相关性分数
+            Reranked document list containing document content and relevance scores
         """
         if top_n is None:
             top_n = self.top_n
@@ -82,7 +82,7 @@ class DashScopeRerank:
                     if self.return_documents and hasattr(item, 'document') and item.document is not None:
                         result["document"] = item.document.text
                     else:
-                        # 如果没有返回文档内容，从原始文档列表中获取
+                        # If document content is not returned, get from original document list
                         result["document"] = documents[item.index]
                     
                     results.append(result)
@@ -91,19 +91,19 @@ class DashScopeRerank:
                 return results
             else:
                 logger.error(f"DashScope rerank failed: {resp.code} - {resp.message}")
-                # 如果重排序失败，返回原始文档（按原顺序）
+                # If reranking fails, return original documents (in original order)
                 return [
                     {
                         "index": i,
                         "document": doc,
-                        "relevance_score": 1.0 - (i * 0.1)  # 简单的降序分数
+                        "relevance_score": 1.0 - (i * 0.1)  # Simple descending scores
                     }
                     for i, doc in enumerate(documents[:top_n])
                 ]
                 
         except Exception as e:
             logger.error(f"DashScope rerank error: {str(e)}")
-            # 出错时返回原始文档
+            # Return original documents on error
             return [
                 {
                     "index": i,
@@ -121,27 +121,27 @@ class DashScopeRerank:
         top_n: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
-        对带元数据的文档进行重排序
+        Rerank documents with metadata
         
         Args:
-            query: 查询文本
-            documents: 文档列表，每个文档是包含内容和元数据的字典
-            content_key: 文档内容在字典中的键名
-            top_n: 返回的文档数量
+            query: Query text
+            documents: List of documents, each document is a dictionary containing content and metadata
+            content_key: Key name for document content in the dictionary
+            top_n: Number of documents to return
             
         Returns:
-            重排序后的文档列表，包含原始元数据和相关性分数
+            Reranked document list containing original metadata and relevance scores
         """
         if not documents:
             return []
             
-        # 提取文档内容
+        # Extract document content
         doc_contents = [doc.get(content_key, "") for doc in documents]
         
-        # 进行重排序
+        # Perform reranking
         rerank_results = self.rerank(query, doc_contents, top_n)
         
-        # 将结果与原始文档元数据合并
+        # Merge results with original document metadata
         final_results = []
         for result in rerank_results:
             original_doc = documents[result["index"]].copy()
@@ -158,8 +158,8 @@ class DashScopeRerank:
         top_n: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
-        异步版本的重排序方法
-        注意：DashScope Python SDK目前不支持异步调用，这里使用同步方法
+        Asynchronous version of reranking method
+        Note: DashScope Python SDK currently does not support async calls, using sync method here
         """
         return self.rerank(query, documents, top_n)
     
@@ -171,20 +171,20 @@ class DashScopeRerank:
         top_n: Optional[int] = None
     ) -> List[Dict[str, Any]]:
         """
-        异步版本的带元数据文档重排序方法
+        Asynchronous version of document reranking with metadata method
         """
         return self.rerank_documents_with_metadata(query, documents, content_key, top_n)
 
 
 def create_dashscope_reranker(config: Dict[str, Any]) -> DashScopeRerank:
     """
-    根据配置创建DashScope重排序器实例
+    Create DashScope reranker instance based on configuration
     
     Args:
-        config: 配置字典，包含模型参数
+        config: Configuration dictionary containing model parameters
         
     Returns:
-        DashScopeRerank实例
+        DashScopeRerank instance
     """
     api_key = os.getenv(config.get("api_key_env", "DASHSCOPE_API_KEY"))
     parameters = config.get("parameters", {})

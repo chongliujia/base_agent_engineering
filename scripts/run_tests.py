@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-测试运行脚本
+Test runner script
 """
 
 import subprocess
@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 def run_command(command, description):
-    """运行命令并处理结果"""
+    """Run command and handle results"""
     print(f"\n{'='*50}")
     print(f"Running: {description}")
     print(f"Command: {command}")
@@ -35,15 +35,15 @@ def run_command(command, description):
 
 
 def main():
-    """主函数"""
-    # 确保在项目根目录
+    """Main function"""
+    # Ensure we're in the project root directory
     project_root = Path(__file__).parent.parent
     os.chdir(project_root)
     
     print("🧪 Base Agent Engineering - Test Suite")
     print(f"📁 Working directory: {os.getcwd()}")
     
-    # 测试命令列表
+    # Test command list
     test_commands = [
         ("python -m pytest tests/unit/ -v", "Unit Tests"),
         ("python -m pytest tests/unit/test_config.py -v", "Config Tests"),
@@ -52,7 +52,7 @@ def main():
         ("python -m pytest --cov=config --cov=src --cov=app --cov-report=term", "Coverage Report"),
     ]
     
-    # 可选的代码质量检查
+    # Optional code quality checks
     quality_commands = [
         ("python -m black --check .", "Code Formatting Check"),
         ("python -m isort --check-only .", "Import Sorting Check"),
@@ -62,12 +62,12 @@ def main():
     success_count = 0
     total_count = len(test_commands)
     
-    # 运行测试
+    # Run tests
     for command, description in test_commands:
         if run_command(command, description):
             success_count += 1
     
-    # 运行代码质量检查（可选）
+    # Run code quality checks (optional)
     print(f"\n{'='*50}")
     print("Running Code Quality Checks (Optional)")
     print(f"{'='*50}")
@@ -78,7 +78,7 @@ def main():
         except Exception as e:
             print(f"⚠️  {description} skipped: {e}")
     
-    # 总结
+    # Summary
     print(f"\n{'='*50}")
     print("TEST SUMMARY")
     print(f"{'='*50}")
