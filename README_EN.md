@@ -413,4 +413,8 @@ A: Modify port configuration in `.env` file. Default ports 8888 (API) and 8889 (
 
 ---
 
+Related Blogs: https://chongliujia.github.io/posts/rag%E7%B3%BB%E7%BB%9F%E5%BC%82%E6%AD%A5%E8%AE%BE%E8%AE%A1%E6%9E%B6%E6%9E%84%E6%96%87%E6%A1%A3/
+
+---
+
 ⭐ If this project helps you, please give it a Star for support!
