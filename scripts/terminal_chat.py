@@ -464,7 +464,7 @@ class TerminalChat:
             }
     
     def display_response(self, result: Dict[str, Any]):
-        """Display response result metadata information (response content already shown via streaming output)""""
+        """Display response result metadata information (response content already shown via streaming output)"""
         metadata = result['metadata']
         processing_time = result['processing_time']
         
