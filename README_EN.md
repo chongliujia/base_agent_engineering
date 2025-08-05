@@ -381,20 +381,6 @@ Access `http://localhost:8889` for Attu management interface:
 3. **New Evaluation Metric**: Implement in `src/evaluation/`
 4. **New API Endpoint**: Implement in `app/api/`
 
-### Code Standards
-
-```bash
-# Code formatting
-black .
-isort .
-
-# Type checking
-mypy .
-
-# Code quality check
-flake8 .
-```
-
 ## 🤝 Contributing
 
 1. Fork the project

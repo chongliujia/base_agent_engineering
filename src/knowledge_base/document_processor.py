@@ -95,7 +95,7 @@ class DocumentProcessor:
                 chunking_strategy, **self.strategy_params
             )
         except Exception as e:
-            print(f"⚠️ Failed to create chunking strategy, using default strategy: {e}")
+            print(f"Failed to create chunking strategy, using default strategy: {e}")
             # Use default recursive chunking strategy as fallback
             splitter_config = self.model_config.get_text_splitter_config()
             self.text_splitter = RecursiveCharacterTextSplitter(

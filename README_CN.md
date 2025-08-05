@@ -361,20 +361,6 @@ server {
 3. **新增评估指标**: 在 `src/evaluation/` 下实现
 4. **新增API接口**: 在 `app/api/` 下实现
 
-### 代码规范
-
-```bash
-# 代码格式化
-black .
-isort .
-
-# 类型检查
-mypy .
-
-# 代码质量检查
-flake8 .
-```
-
 ## 🤝 贡献指南
 
 1. Fork 项目
