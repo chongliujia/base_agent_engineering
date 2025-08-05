@@ -82,8 +82,6 @@ curl -X POST "http://localhost:8010/api/v1/chat" \
 
 ### API Endpoints
 
-> 📖 **Detailed API Documentation**: [Chat_API_Usage_Guide.md](./Chat_API_Usage_Guide.md) | [Chat_API_URL_Examples.md](./Chat_API_URL_Examples.md)
-
 #### Basic Chat Interface
 
 **URL**: `POST http://localhost:8010/api/v1/chat`
@@ -361,19 +359,6 @@ server {
 3. **New Evaluation Metrics**: Implement in `src/evaluation/`
 4. **New API Endpoints**: Implement in `app/api/`
 
-### Code Standards
-
-```bash
-# Code formatting
-black .
-isort .
-
-# Type checking
-mypy .
-
-# Code quality check
-flake8 .
-```
 
 ## 🤝 Contributing
 
