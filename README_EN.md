@@ -410,11 +410,6 @@ A: Use Attu interface for Milvus monitoring, get API metrics via `/api/v1/metric
 ### Q: What about port conflicts?
 A: Modify port configuration in `.env` file. Default ports 8888 (API) and 8889 (management) avoid common port conflicts.
 
-## 📞 Support
-
-- 📧 Email: your-email@example.com
-- 💬 Issues: [GitHub Issues](https://github.com/your-username/base_agent_engineering/issues)
-- 📖 Documentation: [Project Wiki](https://github.com/your-username/base_agent_engineering/wiki)
 
 ---
 
