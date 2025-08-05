@@ -60,7 +60,7 @@ docker-compose up -d
 pip install -r requirements.txt
 
 # Start RAG API service
-python main.py
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8010
 ```
 
 ### 4. Verify Installation
@@ -302,7 +302,7 @@ pytest --cov=config --cov=src --cov=app --cov-report=html
 
 ```bash
 # Start development server
-python main.py
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8010
 
 # Or use uvicorn
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8010

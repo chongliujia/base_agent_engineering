@@ -72,17 +72,17 @@ docker-compose up -d
 pip install -r requirements.txt
 
 # Start RAG API service
-python main.py
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8010
 ```
 
 ### 4. Verify Installation
 
 ```bash
 # Health check
-curl http://localhost:8888/api/v1/health
+curl http://localhost:8010/api/v1/health
 
 # Access API documentation
-open http://localhost:8888/docs
+open http://localhost:8010/docs
 
 # Access Milvus management interface
 open http://localhost:8889
@@ -95,7 +95,7 @@ open http://localhost:8889
 #### Chat Conversation (OpenAI Compatible)
 
 ```bash
-curl -X POST "http://localhost:8888/api/v1/chat/completions" \
+curl -X POST "http://localhost:8010/api/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -d '{
     "messages": [
@@ -111,7 +111,7 @@ curl -X POST "http://localhost:8888/api/v1/chat/completions" \
 #### Streaming Chat
 
 ```bash
-curl -X POST "http://localhost:8888/api/v1/chat/stream" \
+curl -X POST "http://localhost:8010/api/v1/chat/stream" \
   -H "Content-Type: application/json" \
   -d '{
     "messages": [
@@ -124,7 +124,7 @@ curl -X POST "http://localhost:8888/api/v1/chat/stream" \
 #### Hybrid Search
 
 ```bash
-curl -X POST "http://localhost:8888/api/v1/search/hybrid" \
+curl -X POST "http://localhost:8010/api/v1/search/hybrid" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "machine learning algorithm classification",
@@ -189,7 +189,7 @@ python scripts/knowledge_base_cli.py add-dir docs/ --strategy recursive
 ```bash
 # API Service Configuration
 API_HOST=0.0.0.0
-API_PORT=8888                       # RAG API service port
+API_PORT=8010                       # RAG API service port
 API_WORKERS=4
 
 # Database Configuration
@@ -217,7 +217,7 @@ LOG_LEVEL=INFO
 
 ```bash
 # Service port allocation
-8888    # RAG API main service
+8010    # RAG API main service
 8889    # Milvus management interface (Attu)
 19530   # Milvus vector database (internal)
 6379    # Redis cache (internal)
@@ -276,10 +276,10 @@ pytest --cov=config --cov=src --cov=app --cov-report=html
 
 ```bash
 # Start development server
-python main.py
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8010
 
 # Or use uvicorn
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8888
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8010
 ```
 
 ### Production Environment
@@ -311,7 +311,7 @@ server {
 
     # RAG API service
     location /api/rag/ {
-        proxy_pass http://localhost:8888/api/v1/;
+        proxy_pass http://localhost:8010/api/v1/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -360,7 +360,7 @@ server {
 python -m cli system status
 
 # Performance metrics
-curl http://localhost:8888/api/v1/metrics
+curl http://localhost:8010/api/v1/metrics
 ```
 
 ### Milvus Management Interface
@@ -408,7 +408,7 @@ A: Modify `docker-compose.yml` and corresponding config files. Supports Milvus, 
 A: Use Attu interface for Milvus monitoring, get API metrics via `/api/v1/metrics` endpoint.
 
 ### Q: What about port conflicts?
-A: Modify port configuration in `.env` file. Default ports 8888 (API) and 8889 (management) avoid common port conflicts.
+A: Modify port configuration in `.env` file. Default ports 8010 (API) and 8889 (management) avoid common port conflicts.
 
 
 ---
