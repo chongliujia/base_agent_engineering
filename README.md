@@ -301,7 +301,7 @@ pytest --cov=config --cov=src --cov=app --cov-report=html
 - **System Performance**: Response Time, QPS, Resource Usage
 - **User Experience**: Answer Relevance, Information Completeness
 
-## 🚀 Deployment Guide
+## Deployment Guide
 
 ### Development Environment
 
@@ -357,7 +357,7 @@ server {
 - **Load Balancing**: Nginx reverse proxy
 - **Monitoring & Alerting**: Prometheus + Grafana
 
-## 🛠️ Development Guide
+## Development Guide
 
 ### Adding New Features
 
@@ -375,11 +375,11 @@ server {
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache-2.0 License - see the [LICENSE](LICENSE) file for details.
 
-## 🙋‍♂️ FAQ
+## FAQ
 
 ### Q: How to add support for new document types?
 A: Add new parsers in `src/knowledge_base/ingestion/document_processor.py`.
