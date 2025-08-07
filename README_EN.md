@@ -11,23 +11,27 @@
 
 ## English | [中文](./README.md)
 
-🚀 **Intelligent RAG System** - High-performance Retrieval-Augmented Generation (RAG) service based on FastAPI, integrating knowledge base retrieval and web search for a hybrid intelligent assistant.
+**Intelligent RAG System** - High-performance Retrieval-Augmented Generation (RAG) service based on FastAPI, integrating knowledge base retrieval and web search for a hybrid intelligent assistant.
 
 ---
 
-## ✨ Core Features
+## Core Features
 
-- 🔍 **Hybrid Retrieval Strategy**: Intelligent fusion of knowledge base + web search
-- 🧠 **Context Engineering**: Intelligent context selection, compression and optimization
-- ⚡ **High-Performance API**: FastAPI-based asynchronous processing with streaming support
-- 📚 **Knowledge Base Management**: Multi-format document support with intelligent chunking strategies
-- 🎯 **Intelligent Routing**: Automatic optimal retrieval strategy selection based on query type
-- 📊 **Comprehensive Evaluation**: Complete evaluation system for retrieval quality and generation effectiveness
-- 🐳 **Containerized Deployment**: One-click Docker deployment with vector database management interface
+- **Hybrid Retrieval Strategy**: Intelligent fusion of knowledge base + web search
+- **Context Engineering**: Intelligent context selection, compression and optimization
+- **High-Performance API**: FastAPI-based asynchronous processing with streaming support
+- **Knowledge Base Management**: Multi-format document support with intelligent chunking strategies
+- **Intelligent Routing**: Automatic optimal retrieval strategy selection based on query type
+- **Comprehensive Evaluation**: Complete evaluation system for retrieval quality and generation effectiveness
+- **Containerized Deployment**: One-click Docker deployment with vector database management interface
 
-## 🏗️ System Architecture
+##  About The Project
 
-The system implements a sophisticated multi-layered architecture designed for scalability, reliability, and performance:
+![1.png](images/1.png)
+
+![1-1.png](images/1-1.png)
+
+![2.png](images/2.png)
 
 ### Core Components
 - **FastAPI Application Layer**: RESTful APIs with async support
@@ -37,7 +41,7 @@ The system implements a sophisticated multi-layered architecture designed for sc
 - **Vector Storage Layer**: High-performance Milvus vector database
 - **Intelligent Chunking System**: 6 specialized document processing strategies
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -88,7 +92,7 @@ open http://localhost:8010/docs
 open http://localhost:8889
 ```
 
-## 📖 Usage Guide
+## Usage Guide
 
 ### API Endpoints
 
@@ -182,7 +186,7 @@ python scripts/knowledge_base_cli.py add-file doc.pdf --strategy semantic
 python scripts/knowledge_base_cli.py add-dir docs/ --strategy recursive
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables (.env)
 
@@ -270,7 +274,7 @@ pytest --cov=config --cov=src --cov=app --cov-report=html
 - **System Performance**: Response Time, QPS, Resource Utilization
 - **User Experience**: Answer Relevance, Information Completeness
 
-## 🚀 Deployment Guide
+## Deployment Guide
 
 ### Development Environment
 
@@ -326,32 +330,32 @@ server {
 }
 ```
 
-## 🆕 Latest Features
+## Latest Features
 
-### 🧠 Intelligent Chunking Strategy System
+### Intelligent Chunking Strategy System
 - **6 Professional Strategies**: Recursive, Token, Semantic, Character, Code, Format-specific
 - **Automatic Strategy Recommendation**: Smart strategy suggestion based on file type
 - **Format-Aware Processing**: Specialized optimization for PDF, code, Markdown formats
 - **Factory Pattern**: Dynamic registration and extension of new strategies
 
-### 📚 Multi-Knowledge Base Architecture
+### Multi-Knowledge Base Architecture
 - **Independent Knowledge Bases**: Each KB has separate vector storage and metadata
 - **Lifecycle Management**: Complete create, delete, switch, and list functionality
 - **Data Isolation**: Complete separation between different knowledge bases
 - **Concurrent Support**: Multi-KB concurrent operations
 
-### ⚡ Asynchronous Processing Optimization
+### Asynchronous Processing Optimization
 - **Thread Pool Priority**: Avoid gRPC event loop conflicts
 - **Smart Fallback**: Auto-fallback to sync methods when async fails
 - **Batch Processing**: Optimized batch vectorization for large documents
 - **Concurrency Control**: Reasonable limits and resource management
 
-### 🌐 Smart Language Adaptation
+### Smart Language Adaptation
 - **Auto Language Detection**: Automatically detect query language
 - **Matching Response Language**: English queries get English responses
 - **Streaming Adaptation**: Progress messages match query language
 
-## 📊 Performance Monitoring
+## Performance Monitoring
 
 ### System Metrics
 
@@ -367,12 +371,12 @@ curl http://localhost:8010/api/v1/metrics
 
 Access `http://localhost:8889` for Attu management interface:
 
-- 📈 **Performance Monitoring**: Query QPS, latency statistics
-- 🗂️ **Collection Management**: Create, delete, view collections
-- 🔍 **Data Querying**: Vector search testing
-- 📊 **Index Management**: Index types and parameter optimization
+- **Performance Monitoring**: Query QPS, latency statistics
+- **Collection Management**: Create, delete, view collections
+- **Data Querying**: Vector search testing
+- **Index Management**: Index types and parameter optimization
 
-## 🛠️ Development Guide
+## Development Guide
 
 ### Adding New Features
 
@@ -381,7 +385,7 @@ Access `http://localhost:8889` for Attu management interface:
 3. **New Evaluation Metric**: Implement in `src/evaluation/`
 4. **New API Endpoint**: Implement in `app/api/`
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the project
 2. Create feature branch (`git checkout -b feature/AmazingFeature`)
@@ -389,11 +393,11 @@ Access `http://localhost:8889` for Attu management interface:
 4. Push to branch (`git push origin feature/AmazingFeature`)
 5. Open Pull Request
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the ApLicense - see the [LICENSE](LICENSE) file for details.
 
-## 🙋‍♂️ FAQ
+## FAQ
 
 ### Q: How to add support for new document types?
 A: Add new parsers in `src/knowledge_base/ingestion/document_processor.py`.

@@ -11,21 +11,28 @@
 
 ## English | [中文](./README_CN.md)
 
-🚀 **Intelligent RAG System** - High-performance Retrieval-Augmented Generation (RAG) service based on FastAPI, integrating knowledge base retrieval and web search for a hybrid intelligent assistant.
+**Intelligent RAG System** - High-performance Retrieval-Augmented Generation (RAG) service based on FastAPI, integrating knowledge base retrieval and web search for a hybrid intelligent assistant.
 
-## ✨ Core Features
+## Core Features
 
-- 🔍 **Hybrid Retrieval Strategy**: Intelligent fusion of knowledge base + web search
-- 🧠 **Context Engineering**: Smart context selection, compression, and optimization
-- ⚡ **High-Performance API**: FastAPI-based asynchronous processing with streaming response support
-- 📚 **Knowledge Base Management**: Multi-format document support with intelligent chunking strategies
-- 🎯 **Smart Routing**: Automatic selection of optimal retrieval strategy based on query type
-- 📊 **Comprehensive Evaluation**: Complete evaluation system for retrieval quality and generation effectiveness
-- 🐳 **Containerized Deployment**: One-click Docker deployment with vector database management interface
+- **Hybrid Retrieval Strategy**: Intelligent fusion of knowledge base + web search
+- **Context Engineering**: Smart context selection, compression, and optimization
+- **High-Performance API**: FastAPI-based asynchronous processing with streaming response support
+- **Knowledge Base Management**: Multi-format document support with intelligent chunking strategies
+- **Smart Routing**: Automatic selection of optimal retrieval strategy based on query type
+- **Comprehensive Evaluation**: Complete evaluation system for retrieval quality and generation effectiveness
+- **Containerized Deployment**: One-click Docker deployment with vector database management interface
 
-## 🏗️ System Architecture
+##  About The Project
 
-## 🚀 Quick Start
+![1.png](images/1.png)
+
+![1-1.png](images/1-1.png)
+
+![2.png](images/2.png)
+
+
+##  Quick Start
 
 ### Requirements
 
