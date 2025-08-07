@@ -79,10 +79,10 @@ curl http://localhost:8010/health
 # Get model information
 curl http://localhost:8010/api/v1/models
 
-# Test chat functionality
+# Test chat functionality with car_docs knowledge base
 curl -X POST "http://localhost:8010/api/v1/chat" \
   -H "Content-Type: application/json" \
-  -d '{"query": "Hello, please introduce yourself", "search_strategy": "web_only"}'
+  -d '{"query": "汽车发动机故障怎么处理？", "collection_name": "car_docs"}'
 ```
 
 ## 📖 Usage Guide
@@ -93,33 +93,61 @@ curl -X POST "http://localhost:8010/api/v1/chat" \
 
 **URL**: `POST http://localhost:8010/api/v1/chat`
 
+⚠️ **Important**: When using knowledge base functionality, you must specify the `collection_name` parameter in the request.
+
 ```bash
-# Basic Q&A
+# Using car_docs knowledge base for automotive queries
+curl -X POST "http://localhost:8010/api/v1/chat" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "How to troubleshoot car engine problems?",
+    "collection_name": "car_docs",
+    "search_strategy": "both",
+    "max_web_results": 5,
+    "max_kb_results": 5
+  }'
+
+# General queries using web search only
 curl -X POST "http://localhost:8010/api/v1/chat" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "What is artificial intelligence?",
-    "search_strategy": "both",
-    "max_web_results": 5,
-    "max_kb_results": 5
+    "search_strategy": "web_only"
   }'
 ```
 
 #### Streaming Chat Interface
 
-**URL**: `POST http://localhost:8010/api/v1/stream`
+**URL**: `POST http://localhost:8010/api/v1/chat/stream`
 
 ```bash
-curl -X POST "http://localhost:8010/api/v1/stream" \
+# Streaming response for automotive queries
+curl -X POST "http://localhost:8010/api/v1/chat/stream" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Car brake system maintenance tips?",
+    "collection_name": "car_docs"
+  }' \
+  --no-buffer -N
+
+# General streaming queries
+curl -X POST "http://localhost:8010/api/v1/chat/stream" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "Explain the principles of deep learning",
-    "stream": true
+    "search_strategy": "web_only"
   }' \
   --no-buffer -N
 ```
 
 #### Knowledge Base Management
+
+**Available Knowledge Bases**:
+- `car_docs`: Automotive maintenance and repair documentation  
+- `knowledge_base`: Default general knowledge base
+- Other custom knowledge bases you may have created
+
+💡 **Tip**: Use the appropriate knowledge base for your domain-specific queries to get more accurate and relevant responses.
 
 ```bash
 # Get knowledge base list

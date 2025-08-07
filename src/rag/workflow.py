@@ -202,10 +202,10 @@ class RAGWorkflow:
             
             web_results = await search_web(
                 query=state.query,
-                max_results=3,  # Limit to 3 results
+                max_results=5,  # Limit to 5 results
                 search_config={
                     "search_depth": "advanced",
-                    "exclude_domains": ["google.com", "twitter.com", "bing.com"]
+                    "exclude_domains": ["google.com", "bing.com"]
                 }
             )
             

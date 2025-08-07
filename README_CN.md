@@ -78,10 +78,10 @@ curl http://localhost:8010/health
 # 获取模型信息
 curl http://localhost:8010/api/v1/models
 
-# 测试聊天功能
+# 测试汽车知识库聊天功能
 curl -X POST "http://localhost:8010/api/v1/chat" \
   -H "Content-Type: application/json" \
-  -d '{"query": "你好，介绍一下自己", "search_strategy": "web_only"}'
+  -d '{"query": "汽车发动机故障怎么处理？", "collection_name": "car_docs"}'
 ```
 
 ## 使用指南
@@ -90,15 +90,26 @@ curl -X POST "http://localhost:8010/api/v1/chat" \
 
 **URL**: `POST http://localhost:8010/api/v1/chat`
 
+⚠️ **重要提示**: 使用知识库功能时，必须在请求中指定 `collection_name` 参数。
+
 ```bash
-# 基础问答
+# 使用car_docs知识库进行汽车相关咨询
+curl -X POST "http://localhost:8010/api/v1/chat" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "汽车发动机故障怎么处理？",
+    "collection_name": "car_docs",
+    "search_strategy": "both",
+    "max_web_results": 5,
+    "max_kb_results": 5
+  }'
+
+# 一般性问题使用网络搜索
 curl -X POST "http://localhost:8010/api/v1/chat" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "什么是人工智能？",
-    "search_strategy": "both",
-    "max_web_results": 5,
-    "max_kb_results": 5
+    "search_strategy": "web_only"
   }'
 ```
 
@@ -107,16 +118,33 @@ curl -X POST "http://localhost:8010/api/v1/chat" \
 **URL**: `POST http://localhost:8010/api/v1/chat/stream`
 
 ```bash
+# 汽车相关问题的流式响应
+curl -X POST "http://localhost:8010/api/v1/chat/stream" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "汽车刹车系统保养注意事项？",
+    "collection_name": "car_docs"
+  }' \
+  --no-buffer -N
+
+# 一般性问题的流式响应
 curl -X POST "http://localhost:8010/api/v1/chat/stream" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "解释深度学习的原理",
-    "stream": true
+    "search_strategy": "web_only"
   }' \
   --no-buffer -N
 ```
 
 #### 知识库管理
+
+**可用知识库**:
+- `car_docs`: 汽车维修保养相关文档知识库
+- `knowledge_base`: 默认通用知识库  
+- 其他您可能创建的自定义知识库
+
+💡 **提示**: 为了获得更准确和相关的回答，请为您的特定领域查询使用适当的知识库。
 
 ```bash
 # 获取知识库列表

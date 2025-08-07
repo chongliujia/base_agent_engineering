@@ -172,6 +172,69 @@ async def clear_knowledge_base():
         raise HTTPException(status_code=500, detail=f"清空失败: {str(e)}")
 
 
+@router.get("/documents")
+async def list_documents(
+    limit: int = Query(50, ge=1, le=200, description="返回文档数量限制"),
+    collection_name: Optional[str] = Query(None, description="指定知识库名称")
+):
+    """获取知识库中的文档列表"""
+    try:
+        # 如果指定了collection_name，创建对应的知识库管理器
+        if collection_name:
+            from src.knowledge_base.knowledge_base_manager import KnowledgeBaseManager
+            kb_manager = KnowledgeBaseManager(collection_name=collection_name)
+        else:
+            kb_manager = knowledge_base_manager
+        
+        result = await kb_manager.list_documents(limit)
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取文档列表失败: {str(e)}")
+
+
+@router.delete("/documents/by-source")
+async def delete_documents_by_source(
+    source_path: str = Query(..., description="源文件路径"),
+    collection_name: Optional[str] = Query(None, description="指定知识库名称")
+):
+    """按源文件路径删除文档"""
+    try:
+        # 如果指定了collection_name，创建对应的知识库管理器
+        if collection_name:
+            from src.knowledge_base.knowledge_base_manager import KnowledgeBaseManager
+            kb_manager = KnowledgeBaseManager(collection_name=collection_name)
+        else:
+            kb_manager = knowledge_base_manager
+        
+        result = await kb_manager.delete_documents_by_source(source_path)
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"删除文档失败: {str(e)}")
+
+
+@router.delete("/documents/by-filename")
+async def delete_documents_by_filename(
+    filename: str = Query(..., description="文件名"),
+    collection_name: Optional[str] = Query(None, description="指定知识库名称")
+):
+    """按文件名删除文档"""
+    try:
+        # 如果指定了collection_name，创建对应的知识库管理器
+        if collection_name:
+            from src.knowledge_base.knowledge_base_manager import KnowledgeBaseManager
+            kb_manager = KnowledgeBaseManager(collection_name=collection_name)
+        else:
+            kb_manager = knowledge_base_manager
+        
+        result = await kb_manager.delete_documents_by_filename(filename)
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"删除文档失败: {str(e)}")
+
+
 @router.get("/supported-formats")
 async def get_supported_formats():
     """获取支持的文件格式"""

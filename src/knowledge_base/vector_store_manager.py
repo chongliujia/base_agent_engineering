@@ -264,16 +264,41 @@ class VectorStoreManager:
             }
     
     async def delete_by_metadata(self, filter_metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """Delete documents by metadata, prioritize sync methods to avoid event loop conflicts"""
+        """Delete documents by metadata using proper Milvus expressions"""
         try:
+            # Convert metadata filter to Milvus expression format
+            expr_parts = []
+            for key, value in filter_metadata.items():
+                if isinstance(value, str):
+                    # For string values, use exact match with quotes
+                    expr_parts.append(f'{key} == "{value}"')
+                elif isinstance(value, (int, float)):
+                    expr_parts.append(f'{key} == {value}')
+                else:
+                    # Convert other types to string
+                    expr_parts.append(f'{key} == "{str(value)}"')
+            
+            # Combine multiple conditions with AND
+            expr = " and ".join(expr_parts) if expr_parts else ""
+            
+            if not expr:
+                return {
+                    "success": False,
+                    "error": "No valid filter metadata provided",
+                    "message": "Delete failed: No valid filter metadata provided"
+                }
+            
+            print(f"🗑️ Deleting with expression: {expr}")
+            
             # Primary strategy: Use sync method directly in thread pool
             try:
                 result = await run_in_thread_pool(
-                    self.vector_store.delete, filter=filter_metadata
+                    self.vector_store.delete, expr=expr
                 )
                 return {
                     "success": True,
                     "message": "Delete successful",
+                    "expression": expr,
                     "result": result
                 }
                 
@@ -283,23 +308,43 @@ class VectorStoreManager:
                 # Fallback strategy: Check for async method and try in current loop
                 if hasattr(self.vector_store, 'adelete'):
                     try:
-                        result = await self.vector_store.adelete(filter=filter_metadata)
+                        result = await self.vector_store.adelete(expr=expr)
                         return {
                             "success": True,
                             "message": "Delete successful",
+                            "expression": expr,
                             "result": result
                         }
                     except Exception as async_e:
                         print(f"⚠️ Async delete method also failed: {async_e}")
+                        
+                        # Last resort: Try with different parameter names
+                        try:
+                            # Some versions might use 'filter' parameter with expression string
+                            if hasattr(self.vector_store, 'delete_by_expr'):
+                                result = await run_in_thread_pool(
+                                    self.vector_store.delete_by_expr, expr
+                                )
+                                return {
+                                    "success": True,
+                                    "message": "Delete successful (using delete_by_expr)",
+                                    "expression": expr,
+                                    "result": result
+                                }
+                        except Exception as expr_e:
+                            print(f"⚠️ delete_by_expr also failed: {expr_e}")
+                        
                         return {
                             "success": False,
                             "error": str(async_e),
+                            "expression": expr,
                             "message": f"Delete failed: {str(async_e)}"
                         }
                 else:
                     return {
                         "success": False,
                         "error": str(sync_e),
+                        "expression": expr,
                         "message": f"Delete failed: {str(sync_e)}"
                     }
                 

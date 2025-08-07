@@ -532,6 +532,169 @@ class KnowledgeBaseManager:
             }
 
 
+    async def delete_documents_by_source(self, source_path: Union[str, Path]) -> Dict[str, Any]:
+        """Delete documents by source file path"""
+        try:
+            print(f"🗑️ Deleting documents from source: {source_path}")
+            
+            # Delete documents from vector store
+            result = await self.vector_manager.delete_by_metadata({"source": str(source_path)})
+            
+            if result.get("success"):
+                # Save deletion metadata
+                deletion_metadata = {
+                    "operation": "delete_documents_by_source",
+                    "source_path": str(source_path),
+                    "timestamp": datetime.now().isoformat(),
+                    "vector_result": result
+                }
+                
+                self.save_processing_metadata(deletion_metadata)
+                
+                return {
+                    "success": True,
+                    "message": f"Successfully deleted documents from source: {source_path}",
+                    "source_path": str(source_path),
+                    "delete_result": result
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": f"Failed to delete documents from source: {source_path}",
+                    "source_path": str(source_path),
+                    "error": result.get("error", "Unknown error")
+                }
+                
+        except Exception as e:
+            error_result = {
+                "success": False,
+                "error": str(e),
+                "message": f"Failed to delete documents: {str(e)}",
+                "source_path": str(source_path)
+            }
+            
+            # Save error metadata
+            error_metadata = {
+                "operation": "delete_documents_by_source",
+                "source_path": str(source_path),
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e),
+                "success": False
+            }
+            
+            self.save_processing_metadata(error_metadata)
+            
+            return error_result
+    
+    async def delete_documents_by_filename(self, filename: str) -> Dict[str, Any]:
+        """Delete documents by filename pattern (supports wildcards)"""
+        try:
+            print(f"🗑️ Deleting documents by filename pattern: {filename}")
+            
+            # Search for documents first to see what will be deleted
+            import glob
+            from pathlib import Path
+            
+            # If filename contains wildcards, we need to find matching documents
+            if '*' in filename or '?' in filename:
+                # This is a pattern match - we'll need to search vector store
+                # For now, implement exact filename match
+                pass
+            
+            # For exact filename match, we can search by metadata
+            result = await self.vector_manager.delete_by_metadata({"filename": filename})
+            
+            if result.get("success"):
+                # Save deletion metadata
+                deletion_metadata = {
+                    "operation": "delete_documents_by_filename",
+                    "filename": filename,
+                    "timestamp": datetime.now().isoformat(),
+                    "vector_result": result
+                }
+                
+                self.save_processing_metadata(deletion_metadata)
+                
+                return {
+                    "success": True,
+                    "message": f"Successfully deleted documents with filename: {filename}",
+                    "filename": filename,
+                    "delete_result": result
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": f"Failed to delete documents with filename: {filename}",
+                    "filename": filename,
+                    "error": result.get("error", "Unknown error")
+                }
+                
+        except Exception as e:
+            error_result = {
+                "success": False,
+                "error": str(e),
+                "message": f"Failed to delete documents: {str(e)}",
+                "filename": filename
+            }
+            
+            # Save error metadata
+            error_metadata = {
+                "operation": "delete_documents_by_filename",
+                "filename": filename,
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e),
+                "success": False
+            }
+            
+            self.save_processing_metadata(error_metadata)
+            
+            return error_result
+    
+    async def list_documents(self, limit: int = 50) -> Dict[str, Any]:
+        """List documents in the knowledge base"""
+        try:
+            # Get a sample of documents to show available sources
+            docs = await self.vector_manager.search_similar("", k=limit)
+            
+            # Extract unique sources and filenames
+            sources = set()
+            filenames = set()
+            document_info = []
+            
+            for doc in docs:
+                metadata = getattr(doc, 'metadata', {})
+                source = metadata.get('source')
+                filename = metadata.get('filename')
+                
+                if source:
+                    sources.add(source)
+                if filename:
+                    filenames.add(filename)
+                    
+                document_info.append({
+                    "source": source,
+                    "filename": filename,
+                    "file_type": metadata.get('file_type'),
+                    "page": metadata.get('page'),
+                    "chunk_size": len(getattr(doc, 'page_content', ''))
+                })
+            
+            return {
+                "success": True,
+                "total_documents_shown": len(docs),
+                "unique_sources": list(sources),
+                "unique_filenames": list(filenames),
+                "documents": document_info[:limit]  # Limit the detailed info
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "message": f"Failed to list documents: {str(e)}"
+            }
+
+
 # Create global knowledge base manager instance (using default chunking strategy)
 knowledge_base_manager = KnowledgeBaseManager()
 

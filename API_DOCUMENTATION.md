@@ -5,6 +5,7 @@
 - **服务地址**: `http://localhost:8010`
 - **API版本**: v1
 - **基础路径**: `/api/v1`
+- **⚠️ 重要提示**: 使用知识库功能时，必须在请求中指定 `collection_name` 参数
 
 ## 聊天相关接口
 
@@ -18,9 +19,10 @@
 ```json
 {
   "query": "你的问题",
-  "search_strategy": "both",  // 可选: "kb_only", "web_only", "both"
-  "max_web_results": 5,       // 可选: 网络搜索结果数量
-  "max_kb_results": 5         // 可选: 知识库搜索结果数量
+  "collection_name": "car_docs",  // 🔑 必需: 指定知识库名称
+  "search_strategy": "both",      // 可选: "knowledge_only", "web_only", "both"
+  "max_web_results": 5,           // 可选: 网络搜索结果数量
+  "max_kb_results": 5             // 可选: 知识库搜索结果数量
 }
 ```
 
@@ -41,13 +43,23 @@
 
 **调用示例**:
 ```bash
+# 使用car_docs知识库进行汽车相关咨询
+curl -X POST "http://localhost:8010/api/v1/chat" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "汽车发动机故障怎么处理？",
+    "collection_name": "car_docs",
+    "search_strategy": "both",
+    "max_web_results": 5,
+    "max_kb_results": 5
+  }'
+
+# 仅使用网络搜索（无需指定知识库）
 curl -X POST "http://localhost:8010/api/v1/chat" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "什么是人工智能？",
-    "search_strategy": "both",
-    "max_web_results": 5,
-    "max_kb_results": 5
+    "search_strategy": "web_only"
   }'
 ```
 
@@ -61,6 +73,7 @@ curl -X POST "http://localhost:8010/api/v1/chat" \
 ```json
 {
   "query": "你的问题",
+  "collection_name": "car_docs",  // 🔑 推荐: 指定知识库名称以获得更准确的回答
   "stream": true
 }
 ```
@@ -69,25 +82,48 @@ curl -X POST "http://localhost:8010/api/v1/chat" \
 
 **调用示例**:
 ```bash
-curl -X POST "http://localhost:8010/api/v1/stream" \
+# 流式输出汽车相关问题回答
+curl -X POST "http://localhost:8010/api/v1/chat/stream" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "汽车刹车系统保养注意事项？",
+    "collection_name": "car_docs"
+  }' \
+  --no-buffer -N
+
+# 一般性问题流式输出
+curl -X POST "http://localhost:8010/api/v1/chat/stream" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "解释深度学习的原理",
-    "stream": true
+    "search_strategy": "web_only"
   }' \
   --no-buffer -N
 ```
 
 **JavaScript调用示例**:
 ```javascript
-const response = await fetch('http://localhost:8010/api/v1/stream', {
+// 使用知识库的流式请求
+const response = await fetch('http://localhost:8010/api/v1/chat/stream', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    query: '汽车保养相关问题',
+    collection_name: 'car_docs'  // 🔑 指定知识库
+  })
+});
+
+// 一般性问题的流式请求
+const response2 = await fetch('http://localhost:8010/api/v1/chat/stream', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
     query: '什么是机器学习？',
-    stream: true
+    search_strategy: 'web_only'
   })
 });
 
@@ -149,6 +185,11 @@ while (true) {
 ```bash
 curl -X GET "http://localhost:8010/api/v1/knowledge-bases"
 ```
+
+**响应示例中的知识库**:
+- `car_docs`: 汽车维修和保养相关文档知识库
+- `knowledge_base`: 默认通用知识库
+- 其他自定义知识库
 
 ### 4. 切换知识库
 
@@ -281,7 +322,94 @@ curl -X GET "http://localhost:8010/api/v1/knowledge-base/stats"
 curl -X DELETE "http://localhost:8010/api/v1/knowledge-base/clear"
 ```
 
-### 11. 获取支持的文件格式
+### 12. 获取知识库文档列表
+
+**接口**: `GET /api/v1/knowledge-base/documents`
+
+**描述**: 获取知识库中的文档列表
+
+**查询参数**:
+- `limit`: 返回文档数量限制（默认50，最大200）
+- `collection_name`: 指定知识库名称（可选）
+
+**调用示例**:
+```bash
+# 获取car_docs知识库中的文档列表
+curl -X GET "http://localhost:8010/api/v1/knowledge-base/documents?collection_name=car_docs&limit=20"
+
+# 获取默认知识库中的文档列表
+curl -X GET "http://localhost:8010/api/v1/knowledge-base/documents"
+```
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "total_documents_shown": 15,
+  "unique_sources": [
+    "/Users/jiachongliu/Downloads/汽车维修问题.pdf"
+  ],
+  "unique_filenames": [
+    "汽车维修问题.pdf"
+  ],
+  "documents": [
+    {
+      "source": "/Users/jiachongliu/Downloads/汽车维修问题.pdf",
+      "filename": "汽车维修问题.pdf",
+      "file_type": ".pdf",
+      "page": 1,
+      "chunk_size": 856
+    }
+  ]
+}
+```
+
+### 13. 按源文件路径删除文档
+
+**接口**: `DELETE /api/v1/knowledge-base/documents/by-source`
+
+**描述**: 根据源文件路径删除知识库中的所有相关文档块
+
+**查询参数**:
+- `source_path`: 源文件路径（必需）
+- `collection_name`: 指定知识库名称（可选）
+
+**调用示例**:
+```bash
+# 从car_docs知识库删除指定源文件的所有文档
+curl -X DELETE "http://localhost:8010/api/v1/knowledge-base/documents/by-source?source_path=/Users/jiachongliu/Downloads/汽车维修问题.pdf&collection_name=car_docs"
+```
+
+**响应示例**:
+```json
+{
+  "success": true,
+  "message": "Successfully deleted documents from source: /Users/jiachongliu/Downloads/汽车维修问题.pdf",
+  "source_path": "/Users/jiachongliu/Downloads/汽车维修问题.pdf",
+  "delete_result": {
+    "success": true,
+    "message": "Delete successful"
+  }
+}
+```
+
+### 14. 按文件名删除文档
+
+**接口**: `DELETE /api/v1/knowledge-base/documents/by-filename`
+
+**描述**: 根据文件名删除知识库中的相关文档
+
+**查询参数**:
+- `filename`: 文件名（必需）
+- `collection_name`: 指定知识库名称（可选）
+
+**调用示例**:
+```bash
+# 从car_docs知识库删除指定文件名的所有文档
+curl -X DELETE "http://localhost:8010/api/v1/knowledge-base/documents/by-filename?filename=汽车维修问题.pdf&collection_name=car_docs"
+```
+
+### 15. 获取支持的文件格式
 
 **接口**: `GET /api/v1/knowledge-base/supported-formats`
 
@@ -387,7 +515,7 @@ export const useChat = () => {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const sendMessage = async (query) => {
+  const sendMessage = async (query, collectionName = 'car_docs') => {
     setIsLoading(true);
     try {
       const response = await fetch('http://localhost:8010/api/v1/chat/stream', {
@@ -395,7 +523,10 @@ export const useChat = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query, stream: true })
+        body: JSON.stringify({ 
+          query, 
+          collection_name: collectionName  // 🔑 指定知识库
+        })
       });
 
       const reader = response.body.getReader();
@@ -491,7 +622,7 @@ export function useChat() {
   const messages = ref([]);
   const isLoading = ref(false);
 
-  const sendMessage = async (query) => {
+  const sendMessage = async (query, collectionName = 'car_docs') => {
     isLoading.value = true;
     
     // 添加用户消息
@@ -503,7 +634,10 @@ export function useChat() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query, stream: true })
+        body: JSON.stringify({ 
+          query, 
+          collection_name: collectionName  // 🔑 指定知识库
+        })
       });
 
       const reader = response.body.getReader();
@@ -553,11 +687,15 @@ export function useChat() {
 
 ## 注意事项
 
-1. **CORS设置**: 如果从浏览器调用API，确保服务器已正确配置CORS
-2. **流式响应**: 使用流式接口时，注意正确处理SSE格式
-3. **文件上传**: 上传大文件时建议显示进度条
-4. **错误处理**: 建议实现统一的错误处理机制
-5. **认证**: 如果需要认证，在请求头中添加相应的token
+1. **🔑 知识库指定**: 使用知识库功能时，**必须**在请求中指定 `collection_name` 参数
+   - 汽车相关咨询请使用: `"collection_name": "car_docs"`
+   - 如不指定或指定错误的名称，将使用默认知识库，可能无法检索到相关内容
+2. **CORS设置**: 如果从浏览器调用API，确保服务器已正确配置CORS
+3. **流式响应**: 使用流式接口时，注意正确处理SSE格式
+4. **文件上传**: 上传大文件时建议显示进度条
+5. **错误处理**: 建议实现统一的错误处理机制
+6. **认证**: 如果需要认证，在请求头中添加相应的token
+7. **端口配置**: 确保使用正确的端口号 `8010`（而非文档中可能出现的其他端口）
 
 ## 更新日志
 
