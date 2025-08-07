@@ -379,8 +379,12 @@ class TerminalChat:
             print(f"{Colors.CYAN}{'═' * 60}{Colors.RESET}")
             print()
             
-            # Execute RAG workflow - use streaming output
-            result = await rag_workflow.run(query, stream_callback=self.stream_chunk_handler)
+            # Execute RAG workflow - use streaming output with current collection name
+            result = await rag_workflow.run(
+                query, 
+                collection_name=self.settings.current_collection_name,
+                stream_callback=self.stream_chunk_handler
+            )
             
             # Output newline to indicate answer end
             print("\n")

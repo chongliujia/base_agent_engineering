@@ -40,9 +40,15 @@ async def add_file_command(file_path: str, collection_name: str = None,
         print(f"   Chunking strategy: {chunking_strategy}")
     
     try:
-        result = await KnowledgeBaseManager.add_file_to_knowledge_base(
-            file_path, 
+        # Create KnowledgeBaseManager instance
+        kb_manager = KnowledgeBaseManager(
             collection_name=collection_name,
+            chunking_strategy=chunking_strategy,
+            strategy_params=strategy_params or {}
+        )
+        
+        result = await kb_manager.add_file(
+            file_path, 
             chunking_strategy=chunking_strategy,
             strategy_params=strategy_params or {}
         )
@@ -50,8 +56,9 @@ async def add_file_command(file_path: str, collection_name: str = None,
         if result.get("success", False):
             print(f"✅ File added successfully!")
             print(f"   File: {result['file_path']}")
-            print(f"   Chunks: {result['chunks_count']}")
-            print(f"   Knowledge base: {result['collection_name']}")
+            print(f"   Total chunks: {result['total_chunks']}")
+            print(f"   Valid chunks: {result['valid_chunks']}")
+            print(f"   Knowledge base: {collection_name or 'default'}")
         else:
             print(f"❌ Failed to add file: {result.get('message', result.get('error', 'Unknown error'))}")
     except Exception as e:
@@ -71,10 +78,16 @@ async def add_directory_command(directory_path: str, recursive: bool = True,
         print(f"   Chunking strategy: {chunking_strategy}")
     
     try:
-        result = await KnowledgeBaseManager.add_directory_to_knowledge_base(
+        # Create KnowledgeBaseManager instance
+        kb_manager = KnowledgeBaseManager(
+            collection_name=collection_name,
+            chunking_strategy=chunking_strategy,
+            strategy_params=strategy_params or {}
+        )
+        
+        result = await kb_manager.add_directory(
             directory_path, 
             recursive=recursive,
-            collection_name=collection_name,
             auto_strategy=auto_strategy,
             chunking_strategy=chunking_strategy,
             strategy_params=strategy_params or {}
@@ -83,18 +96,18 @@ async def add_directory_command(directory_path: str, recursive: bool = True,
         if result.get("success", False):
             print(f"✅ Directory added successfully!")
             print(f"   Directory: {result['directory_path']}")
-            print(f"   Files processed: {result['files_count']}")
-            print(f"   Total chunks: {result['total_chunks']}")
-            print(f"   Knowledge base: {result['collection_name']}")
             
-            # Display processing details
-            if result.get('processing_details'):
-                print(f"\n📊 Processing details:")
-                for detail in result['processing_details']:
-                    status = "✅" if detail['success'] else "❌"
-                    print(f"   {status} {detail['file_path']} - {detail['chunks_count']} chunks")
-                    if not detail['success']:
-                        print(f"      Error: {detail.get('error', 'Unknown error')}")
+            # Display document summary if available
+            if result.get('document_summary'):
+                summary = result['document_summary']
+                print(f"   Files processed: {summary.get('total_files', 0)}")
+                print(f"   Total chunks: {summary.get('total_chunks', 0)}")
+                
+                # Display file type distribution
+                if summary.get('file_types'):
+                    print(f"\n📊 File type distribution:")
+                    for file_type, count in summary['file_types'].items():
+                        print(f"   {file_type}: {count} files")
         else:
             print(f"❌ Failed to add directory: {result.get('message', result.get('error', 'Unknown error'))}")
     except Exception as e:
@@ -110,21 +123,22 @@ async def search_command(query: str, top_k: int = 5, show_scores: bool = False,
     print(f"   Return count: {top_k}")
     
     try:
-        results = await KnowledgeBaseManager.search_knowledge_base(
-            query, 
-            top_k=top_k, 
-            collection_name=collection_name
-        )
+        # Create KnowledgeBaseManager instance
+        kb_manager = KnowledgeBaseManager(collection_name=collection_name)
         
-        if results:
+        result = await kb_manager.search(query, k=top_k, include_scores=show_scores)
+        
+        if result.get("success", False) and result.get("results"):
+            results = result["results"]
             print(f"\n📋 Found {len(results)} results:")
-            for i, result in enumerate(results, 1):
-                print(f"\n{i}. 📄 {result.metadata.get('source', 'Unknown source')}")
-                if show_scores:
-                    print(f"   Similarity: {result.metadata.get('score', 'N/A')}")
-                print(f"   Content: {result.page_content[:200]}...")
-                if len(result.page_content) > 200:
-                    print(f"   (Total length: {len(result.page_content)} characters)")
+            for i, result_item in enumerate(results, 1):
+                print(f"\n{i}. 📄 {result_item['metadata'].get('source', 'Unknown source')}")
+                if show_scores and 'score' in result_item:
+                    print(f"   Similarity: {result_item['score']}")
+                content = result_item['content']
+                print(f"   Content: {content[:200]}...")
+                if len(content) > 200:
+                    print(f"   (Total length: {len(content)} characters)")
         else:
             print("❌ No results found")
     except Exception as e:
@@ -138,18 +152,20 @@ async def stats_command(collection_name: str = None):
         print(f"   Knowledge base: {collection_name}")
     
     try:
-        stats = await KnowledgeBaseManager.get_knowledge_base_stats(collection_name)
+        # Create KnowledgeBaseManager instance
+        kb_manager = KnowledgeBaseManager(collection_name=collection_name)
+        
+        stats = kb_manager.get_knowledge_base_stats()
         
         if stats:
+            print(f"   Collection name: {stats.get('collection_name', 'Unknown')}")
             print(f"   Total documents: {stats.get('total_documents', 0)}")
-            print(f"   Total chunks: {stats.get('total_chunks', 0)}")
-            print(f"   Knowledge base name: {stats.get('collection_name', 'Unknown')}")
             
-            # Display file type statistics
-            if stats.get('file_types'):
-                print(f"\n📁 File type distribution:")
-                for file_type, count in stats['file_types'].items():
-                    print(f"   {file_type}: {count} files")
+            # Display processing history statistics
+            if stats.get('processing_stats'):
+                proc_stats = stats['processing_stats']
+                print(f"   Total operations: {proc_stats.get('total_operations', 0)}")
+                print(f"   Successful operations: {proc_stats.get('successful_operations', 0)}")
         else:
             print("❌ Unable to get statistics")
     except Exception as e:
@@ -161,16 +177,28 @@ async def list_kb_command():
     print("📚 Available knowledge bases:")
     
     try:
-        knowledge_bases = await KnowledgeBaseManager.list_knowledge_bases()
+        # Remove await since list_knowledge_bases() is synchronous
+        knowledge_bases = KnowledgeBaseManager.list_knowledge_bases()
         
         if knowledge_bases:
-            for kb in knowledge_bases:
-                status = "✅ Active" if kb.get('is_current', False) else "⚪ Available"
-                print(f"   {status} {kb['name']}")
-                if kb.get('path'):
-                    print(f"      Path: {kb['path']}")
-                if kb.get('description'):
-                    print(f"      Description: {kb['description']}")
+            # knowledge_bases is a list of strings (collection names)
+            from config.settings import get_settings
+            settings = get_settings()
+            
+            for kb_name in knowledge_bases:
+                # Check if this is the current knowledge base
+                is_current = kb_name == settings.current_collection_name
+                
+                status = "✅ Active" if is_current else "⚪ Available"
+                print(f"   {status} {kb_name}")
+                
+                # Try to get additional info like path
+                try:
+                    kb_path = Path(settings.knowledge_base_path) / kb_name
+                    if kb_path.exists():
+                        print(f"      Path: {kb_path}")
+                except Exception:
+                    pass
         else:
             print("   No knowledge bases found")
     except Exception as e:

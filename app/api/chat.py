@@ -49,43 +49,38 @@ class KnowledgeBaseInfo(BaseModel):
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
+async def chat(request: ChatRequest):
     """
-    Chat with AI consultation assistant
-    
-    Supported features:
+    Chat interface supporting:
     - Knowledge base retrieval
     - Web search
-    - Intelligent strategy selection
+    - Hybrid mode
     - Custom prompts
     """
     start_time = datetime.now()
     
     try:
-        # Switch knowledge base (if specified)
-        if request.collection_name:
-            kb_manager = get_knowledge_base_manager()
-            available_kbs = kb_manager.list_knowledge_bases()
-            
-            if request.collection_name not in available_kbs:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Knowledge base '{request.collection_name}' does not exist"
-                )
-            
-            # Temporarily switch knowledge base
-            original_collection = get_settings().current_collection_name
-            get_settings().current_collection_name = request.collection_name
+        # 移除这部分代码，不再需要手动切换全局设置
+        # if request.collection_name:
+        #     kb_manager = get_knowledge_base_manager()
+        #     available_kbs = kb_manager.list_knowledge_bases()
+        #     
+        #     if request.collection_name not in available_kbs:
+        #         raise HTTPException(...)
+        #     
+        #     original_collection = get_settings().current_collection_name
+        #     get_settings().current_collection_name = request.collection_name
         
-        # Set workflow parameters
-        workflow_result = await rag_workflow.run(request.query)
+        # 直接传递collection_name给workflow
+        workflow_result = await rag_workflow.run(
+            query=request.query,
+            collection_name=request.collection_name
+        )
         
         # Handle LangGraph return result format
         if isinstance(workflow_result, dict):
-            # LangGraph's ainvoke may return dict format
             workflow_state = RAGState(**workflow_result)
         else:
-            # Direct RAGState object
             workflow_state = workflow_result
         
         # Ensure all necessary attributes exist
@@ -149,10 +144,6 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
             "processing_time": processing_time
         }
         
-        # Restore original knowledge base settings
-        if request.collection_name:
-            get_settings().current_collection_name = original_collection
-        
         return ChatResponse(
             query=request.query,
             response=workflow_state.response,
@@ -163,10 +154,7 @@ async def chat_with_assistant(request: ChatRequest) -> ChatResponse:
         )
         
     except Exception as e:
-        # Restore original knowledge base settings (error case)
-        if request.collection_name:
-            get_settings().current_collection_name = original_collection
-            
+        # 也不需要在异常处理中恢复设置
         raise HTTPException(status_code=500, detail=f"Error occurred while processing request: {str(e)}")
 
 
@@ -236,7 +224,11 @@ async def chat_stream(request: ChatRequest):
             async def run_workflow():
                 nonlocal workflow_complete, workflow_result, workflow_error
                 try:
-                    workflow_result = await rag_workflow.run(request.query, stream_callback=sync_callback)
+                    workflow_result = await rag_workflow.run(
+                        query=request.query,
+                        collection_name=request.collection_name,  # 直接传递给workflow
+                        stream_callback=sync_callback
+                    )
                     workflow_complete = True
                 except Exception as e:
                     workflow_error = e

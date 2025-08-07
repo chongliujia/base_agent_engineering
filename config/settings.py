@@ -412,13 +412,13 @@ class ModelConfig:
         return self._config[config_key][model_name]
 
 
-@lru_cache()
+# @lru_cache()
 def get_settings() -> Settings:
     """获取应用配置实例（单例）"""
     return Settings()
 
 
-@lru_cache()
+# @lru_cache()
 def get_model_config() -> ModelConfig:
     """获取模型配置实例（单例）"""
     return ModelConfig()

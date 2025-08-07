@@ -107,10 +107,10 @@ curl -X POST "http://localhost:8010/api/v1/chat" \
 
 #### Streaming Chat Interface
 
-**URL**: `POST http://localhost:8010/api/v1/chat/stream`
+**URL**: `POST http://localhost:8010/api/v1/stream`
 
 ```bash
-curl -X POST "http://localhost:8010/api/v1/chat/stream" \
+curl -X POST "http://localhost:8010/api/v1/stream" \
   -H "Content-Type: application/json" \
   -d '{
     "query": "Explain the principles of deep learning",
@@ -134,17 +134,51 @@ curl -X POST "http://localhost:8010/api/v1/switch-kb/ai_research"
 #### Knowledge Base Management
 
 ```bash
+# List all knowledge bases
+python scripts/knowledge_base_cli.py list-kb
+
 # Create knowledge base
-python -m cli kb create --name "tech_docs" --description "Technical documentation repository"
+python scripts/knowledge_base_cli.py create-kb tech_docs --strategy recursive
 
-# Upload document
-python -m cli docs upload --file document.pdf --collection tech_docs
+# Switch knowledge base
+python scripts/knowledge_base_cli.py switch-kb tech_docs
 
-# Batch upload
-python -m cli docs batch-upload --directory ./documents/ --collection tech_docs
+# Delete knowledge base (with confirmation)
+python scripts/knowledge_base_cli.py delete-kb tech_docs --confirm
 
-# View status
-python -m cli kb stats --name tech_docs
+# View knowledge base statistics
+python scripts/knowledge_base_cli.py stats --collection tech_docs
+```
+
+#### Document Management
+
+```bash
+# Upload single document
+python scripts/knowledge_base_cli.py add-file document.pdf --collection tech_docs --strategy semantic
+
+# Batch upload directory
+python scripts/knowledge_base_cli.py add-dir ./documents/ --collection tech_docs --strategy recursive
+
+# Upload with custom chunking parameters
+python scripts/knowledge_base_cli.py add-file document.pdf \
+  --collection tech_docs \
+  --strategy recursive \
+  --chunk-size 1000 \
+  --chunk-overlap 200
+```
+
+#### Search and Strategy Management
+
+```bash
+# Search knowledge base
+python scripts/knowledge_base_cli.py search "What is machine learning" --collection tech_docs -k 10 --scores
+
+# List available chunking strategies
+python scripts/knowledge_base_cli.py list-strategies
+
+# Get strategy recommendations
+python scripts/knowledge_base_cli.py recommend-strategy --file-type pdf
+python scripts/knowledge_base_cli.py recommend-strategy --use-case knowledge_base
 ```
 
 #### Search Testing

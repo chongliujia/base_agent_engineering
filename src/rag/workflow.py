@@ -16,6 +16,7 @@ from config.settings import get_model_config
 class RAGState(BaseModel):
     """RAG workflow state"""
     query: str
+    collection_name: Optional[str] = None  # 新增：指定知识库名称
     messages: List[BaseMessage] = []
     documents: List[Document] = []
     web_results: List[Dict[str, Any]] = []
@@ -165,10 +166,15 @@ class RAGWorkflow:
     async def _retrieve_knowledge_task(self, state: RAGState) -> List:
         """Knowledge base retrieval task - for parallel execution"""
         try:
-            # Use knowledge base manager to avoid async loop issues
-            from src.knowledge_base.knowledge_base_manager import get_knowledge_base_manager
+            # 直接创建知识库管理器实例，而不是使用全局单例
+            from src.knowledge_base.knowledge_base_manager import KnowledgeBaseManager
             
-            kb_manager = get_knowledge_base_manager()
+            # 确定要使用的知识库名称
+            collection_name = state.collection_name or "knowledge_base"  # 默认知识库
+            print(f"📚 Using knowledge base: {collection_name}")
+            
+            # 直接创建指定知识库的管理器实例
+            kb_manager = KnowledgeBaseManager(collection_name=collection_name)
             result = await kb_manager.search(state.query, k=3, include_scores=False)
             
             if result.get("success"):
@@ -184,7 +190,7 @@ class RAGWorkflow:
                 return docs
             else:
                 raise Exception(result.get("message", "Knowledge base search failed"))
-                
+                    
         except Exception as e:
             # Raise exception for parallel processor to catch
             raise e
@@ -199,7 +205,7 @@ class RAGWorkflow:
                 max_results=3,  # Limit to 3 results
                 search_config={
                     "search_depth": "advanced",
-                    "exclude_domains": ["pinterest.com", "twitter.com", "instagram.com"]
+                    "exclude_domains": ["google.com", "twitter.com", "bing.com"]
                 }
             )
             
@@ -364,9 +370,9 @@ Answer:"""
         
         return state
     
-    async def run(self, query: str, stream_callback=None) -> RAGState:
+    async def run(self, query: str, collection_name: Optional[str] = None, stream_callback=None) -> RAGState:
         """Run RAG workflow"""
-        initial_state = RAGState(query=query)
+        initial_state = RAGState(query=query, collection_name=collection_name)
         
         # Since LangGraph doesn't directly support streaming callbacks, we need to manually execute steps
         if stream_callback:
