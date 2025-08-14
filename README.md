@@ -13,6 +13,8 @@
 
 **Intelligent RAG System** - High-performance Retrieval-Augmented Generation (RAG) service based on FastAPI, integrating knowledge base retrieval and web search for a hybrid intelligent assistant.
 
+Websites supported by this project: [isamtech](https://isamtech.xyz/)
+
 ## Core Features
 
 - **Hybrid Retrieval Strategy**: Intelligent fusion of knowledge base + web search
