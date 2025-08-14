@@ -422,7 +422,7 @@ A: 修改 `.env` 文件中的端口配置，默认使用8010(API)避免常用端
 
 ---
 
-相关博客：https://chongliujia.github.io/posts/rag%E7%B3%BB%E7%BB%9F%E5%BC%82%E6%AD%A5%E8%AE%BE%E8%AE%A1%E6%9E%B6%E6%9E%84%E6%96%87%E6%A1%A3/
+[相关博客](https://chongliujia.github.io/posts/rag%E7%B3%BB%E7%BB%9F%E5%BC%82%E6%AD%A5%E8%AE%BE%E8%AE%A1%E6%9E%B6%E6%9E%84/)
 
 ---
 ⭐ 如果这个项目对你有帮助，请给个Star支持一下！
